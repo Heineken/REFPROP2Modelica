@@ -103,7 +103,7 @@ $(BINDIR)/$(HEADERFILE)$(HEADEREXTENSION): $(SRCDIR)/$(HEADERFILE)$(HEADEREXTENS
 .PHONY     : library
 library    : $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION)
 
-$(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): nopoco
+$(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): poco
 
 .PHONY     : nopoco
 nopoco     : $(SRCDIR)/$(LIBFILE).org.o
@@ -111,7 +111,7 @@ nopoco     : $(SRCDIR)/$(LIBFILE).org.o
 
 .PHONY     : poco
 poco       : $(SRCDIR)/$(LIBFILE).poco.o
-	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).poco.o $(LIBS) -lPocoFoundation
+	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).poco.o -lPocoFoundation
 
 ###########################################################
 #  Compile the wrapper class tests.

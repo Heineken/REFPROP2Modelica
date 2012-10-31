@@ -89,7 +89,8 @@ int main(int argc, char* argv[]){
 	//strcpy(fluidname,argv[2]);
 	strcpy(fluidname,"BUTANE");
 	//props is defined
-	double statevarval = 1e5; // 1 bar
+	double statevarval; // 1 bar
+	statevarval = 1e5; // 1 bar
 	// x is defined
 	char REFPROP_PATH[255];
 	strcpy(REFPROP_PATH,argv[5]);
@@ -97,7 +98,21 @@ int main(int argc, char* argv[]){
 	double T;
 	T = satprops_REFPROP (what, statevar, fluidname, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
 	printf("Saturation conditions for %s\t",fluidname);
-	printf("Saturation temperature =%f\t",T);
+	printf("Saturation temperature =%f\n\n",T);
+	
+	
+	strcpy(what, "T");
+	strcpy(statevar, "p");
+	strcpy(fluidname,"BUTANE");
+	statevarval = 1.1e5; // 1 bar
+	strcpy(REFPROP_PATH,argv[5]);
+
+	T = satprops_REFPROP (what, statevar, fluidname, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
+	printf("Saturation conditions for %s\t",fluidname);
+	printf("Saturation temperature =%f\n\n",T);
+	
+	
+	printf("Errormessage: %s\n\n",errormsg);
 
 	return 0;
 }

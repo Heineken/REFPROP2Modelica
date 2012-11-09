@@ -51,6 +51,7 @@
 
 
 // Some constants...
+const long maxstringlength=10000;
 const long filepathlength=1024;
 const long errormessagelength=255+filepathlength;
 const long lengthofreference=3;
@@ -87,12 +88,46 @@ SATTdll_POINTER SATT = NULL;
 SATPdll_POINTER SATP = NULL;
 SATDdll_POINTER SATD = NULL;
 
+// char *str_replace(char *str, char *search, char *replace, long *count, int DEBUGMODE) {
+//   int i,n_ret;
+//   int newlen = strlen(replace);
+//   int oldlen = strlen(search);
+//   char *ret;
+//   *count = 0;
+//  
+//  //count occurrences of searchstring
+//   for (i = 0; oldlen && str[i]; ++i)
+//     if (strstr(&str[i], search) == &str[i]){ // if walk through is at searchstr
+//       ++*count, i+=oldlen - 1;
+// 	  }
+// 	ret  = (char *) calloc(n_ret = (strlen(str) + 1 + *count * (newlen - oldlen)), sizeof(char));
+//   if (!ret){
+// 	printf("Could not allocate memory");
+// 	return "";
+// 	}
+//  
+// 	if (!*count){
+// 		strncpy(ret,str,n_ret);
+// 		//if (DEBUGMODE) printf("RET: %i %s\n",oldlen,str);
+// 	}else{	
+// 		i = 0;
+// 		while (*str)
+// 		if (strstr(str, search) == str)
+// 		  strncpy(&ret[i], replace,n_ret-i-1),
+// 		  i += newlen,
+// 		  str += oldlen;
+// 		else
+// 		  ret[i++] = *str++;
+// 	  ret[i] = '\0';
+// 	}
+// 	return ret;
+// }
 
 //str_replace    (fluidnames,          "|",       replace,          nX)
 char *str_replace(char *str,  char *search, char *replace, long *count, int DEBUGMODE) {
 
   *count = 0;
-  char ret[filepathlength];
+  char ret[maxstringlength];
 
   std::string fluids(str);
   std::string dlimit(search);
@@ -122,6 +157,26 @@ return ret;
 
 }
 
+// char printDoubleArray (double* arr[] ) {
+// std::copy(arr.begin(),arr.end(),std::ostream_iterator<int>(std::cout,", "));
+// }
+
+char *printX(double arr[], long nX) {
+  char ret[filepathlength];
+  char tmp[filepathlength];
+  strcpy(ret,"(");
+  //for(int i = 0; i < (sizeof(arr)-1); i++) {
+  for(int i = 0; i < (nX-2); i++) {
+    sprintf(tmp,"%f, ", arr[i]);
+    strcat(ret,tmp);
+  } 
+  sprintf(tmp,"%f", arr[nX-1]);
+  strcat(ret,tmp);
+  
+  strcat(ret,")");
+  //printf ("output: %s \n", ret);
+  return ret;
+}
 
 int init_REFPROP(char* fluidnames, char* REFPROP_PATH_CHAR, long* nX, char* herr, char* errormsg, int DEBUGMODE){
 // Sets up the interface to the REFPROP.DLL
@@ -296,7 +351,8 @@ int init_REFPROP(char* fluidnames, char* REFPROP_PATH_CHAR, long* nX, char* herr
 	//if (DEBUGMODE) printf("REPLACE: %s\n",replace);
 	  strncat(replace, FLD_PATH_CHAR,filepathlength-strlen(replace));
 
-	int hf_len = strlen(fluidnames)+ncmax*(strlen(replace)-1)+4;
+	//int hf_len = strlen(fluidnames)+ncmax*(strlen(replace)-1)+4;
+	int hf_len = maxstringlength;
 	hf =  (char*) calloc(hf_len, sizeof(char));
 
 	strncpy(hf,FLD_PATH_CHAR,hf_len);
@@ -325,7 +381,11 @@ int init_REFPROP(char* fluidnames, char* REFPROP_PATH_CHAR, long* nX, char* herr
 
 	SETUPdll_POINTER SETUP = (SETUPdll_POINTER) RefpropdllInstance->getSymbol(SETUPdll_NAME);
 	if (DEBUGMODE) printf("Running SETUP...\n");
-	SETUP(*nX, hf, hfmix, hrf, ierr, herr);
+	//char hftmp[maxstringlength];
+	//strcpy(hftmp,hf);
+	static char hfld[maxstringlength+1];
+	strcpy(hfld,hf);
+	SETUP(*nX, hfld, hfmix, hrf, ierr, herr);
 	
 	strcpy(loadedfluids,fluidnames);
 	strcpy(loadedpath,REF_PATH_CHAR);
@@ -760,16 +820,16 @@ OUTPUT
 			sprintf(errormsg,"T=%f and p=%f out of range",T,p);
 			break;
 		case 8:
-			strcpy(errormsg,"x out of range (component and/or sum < 0 or > 1)");
+			sprintf(errormsg,"x out of range (component and/or sum < 0 or > 1):%s",printX(x,nX));
 			break;
 		case 9:
-			sprintf(errormsg,"x or T=%f out of range",T);
+			sprintf(errormsg,"x=%s or T=%f out of range",printX(x,nX),T);
 			break;
 		case 12:
-			sprintf(errormsg,"x out of range and P=%f < 0",p);
+			sprintf(errormsg,"x=%s out of range and P=%f < 0",printX(x,nX),p);
 			break;
 		case 13:
-			sprintf(errormsg,"x, T=%f and p=%f out of range",T,p);
+			sprintf(errormsg,"x=%s, T=%f and p=%f out of range",printX(x,nX),T,p);
 			break;
 		case 16:
 			strcpy(errormsg,"TPFLSH error: p>melting pressure");
@@ -1045,10 +1105,10 @@ OUTPUT
 			sprintf(errormsg,"T=%f < Tmin",T);
 			break;
 		case 8:
-			strcpy(errormsg,"x out of range");
+			sprintf(errormsg,"x out of range, %s",printX(x,nX));
 			break;
 		case 9:
-			strcpy(errormsg,"T and x out of range");
+			sprintf(errormsg,"T=%f and x=%s out of range",T,printX(x,nX));
 			break;
 		case 10:
 			strcpy(errormsg,"D and x out of range");

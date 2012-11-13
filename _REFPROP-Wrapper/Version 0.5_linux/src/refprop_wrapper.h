@@ -38,6 +38,9 @@ extern "C" {
 #endif // __cplusplus
  double props_REFPROP(char* what, char* statevars, char* fluidnames, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
  double satprops_REFPROP(char* what, char* statevar, char* fluidnames, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
+ //
+ //double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, char * Ref);
+ double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, double* xkg, char * Ref, char * Path, char * herr, int DEBUGMODE);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

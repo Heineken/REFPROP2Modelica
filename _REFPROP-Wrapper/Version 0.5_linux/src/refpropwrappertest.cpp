@@ -113,6 +113,11 @@ int main(int argc, char* argv[]){
 	
 	
 	printf("Errormessage: %s\n\n",errormsg);
+	
+	
+// 	double dens;
+// 	dens = REFPROP(char "D",char Name1, double Prop1, char Name2, double Prop2, char * Ref)
+	
 
 	return 0;
 }

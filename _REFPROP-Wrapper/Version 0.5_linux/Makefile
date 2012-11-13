@@ -103,7 +103,7 @@ $(BINDIR)/$(HEADERFILE)$(HEADEREXTENSION): $(SRCDIR)/$(HEADERFILE)$(HEADEREXTENS
 .PHONY     : library
 library    : $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION)
 
-$(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): poco
+$(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): ian
 
 .PHONY     : nopoco
 nopoco     : $(SRCDIR)/$(LIBFILE).org.o
@@ -113,6 +113,10 @@ nopoco     : $(SRCDIR)/$(LIBFILE).org.o
 poco       : $(SRCDIR)/$(LIBFILE).poco.o
 	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).poco.o -lPocoFoundation
 
+.PHONY     : ian
+ian        : $(SRCDIR)/$(LIBFILE).ian.o
+	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).ian.o -lPocoFoundation
+
 ###########################################################
 #  Compile the wrapper class tests.
 ###########################################################	
@@ -121,6 +125,12 @@ test       : $(BINDIR)/$(THETEST)
 
 $(BINDIR)/$(THETEST) : $(SRCDIR)/$(THETEST).o 
 	$(CPPC) $(CPPFLAGS) -o $(BINDIR)/$(THETEST) $(SRCDIR)/$(THETEST).o $(LIBS) -l$(THENAME)
+
+# .PHONY     : ian
+# ian        : $(BINDIR)/$(THETEST).ian
+# 
+# $(BINDIR)/$(THETEST).ian : $(SRCDIR)/$(THETEST).ian.o $(SRCDIR)/$(LIBFILE).ian.o 
+# 	$(CPPC) $(CPPFLAGS) -o $(BINDIR)/$(THETEST) $(SRCDIR)/$(THETEST).ian.o $(SRCDIR)/$(LIBFILE).ian.o -lPocoFoundation 
 
 ###########################################################
 #  General rulesets for compilation.

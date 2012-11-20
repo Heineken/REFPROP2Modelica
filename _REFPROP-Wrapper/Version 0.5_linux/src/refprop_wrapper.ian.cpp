@@ -1,10 +1,14 @@
 /*
 	wrapper file for refprop.
 	
+	Heavily based on the Refprop wrapper in CoolProp by 
+	Ian Bell (ian.h.bell@gmail.com) - http://coolprop.sourceforge.net/
+	
+	Compatible to the modelica interface developed by 
 	Based on earlier work by Henning Francke (francke@gfz-potsdam.de)
 	and the CoolProp wrapper by Ian Bell (ian.h.bell@gmail.com).
 	
-	"Copied and pasted" by Jorrit Wronski (jowr@mek.dtu.dk)
+	Changes to produce this file by Jorrit Wronski (jowr@mek.dtu.dk)
 	
 */
 
@@ -42,9 +46,7 @@
 #include "Poco/Path.h"
 #include "Poco/File.h"
 #include "Poco/Environment.h"
-#include "Poco/StringTokenizer.h"
 #include "Poco/String.h"
-#include "Poco/Exception.h"
 //
 //
 //
@@ -238,9 +240,34 @@ return ret;
 }
 
 
-
-double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, double* xkg, char * Ref, char* RefpropPath, char* herr, int DEBUGMODE)
-{  
+/* 
+ * Calculate properties for the current conditions. Includes initialisation and check of 
+ * the requested fluids. Since the input comes from Modelica, unit conversion functions are 
+ * invoked if necessary. 
+ * This function is based on the Refprop wrapper that comes with the CoolProp package 
+ * written by Ian Bell (ian.h.bell@gmail.com). The software is an open-source fluid property 
+ * calculator based on Helmholtz energy. It is available athttp://coolprop.sourceforge.net.
+ * 
+ * Input parameters: 
+ * Output : Which property are we looking for? This char is one of:
+ * Name1  : First input quantity
+ * Prop1  : Value of the first quantity
+ * Name2  : Second input quantity
+ * Prop2  : Value of the second quantity
+ * Xkg    : Array of mass based composition fractions
+ * Fluids : Char specifying the fluids in the mixture
+ * RPath  : Absolute path pointing to Refprop folder 
+ * 
+ * Output parameters:
+ * return : The requested property
+ * herr   : Error message from Refprop
+ * 
+ * Additional input:
+ * DEBUG  : 0 or 1 to turn debug output off or on 
+ * 
+*/
+//double REFPROP(char Output, char Name1, double Prop1, char Name2, double Prop2, double* Xkg, char * Ref, char* RefpropPath, char* herr, int DEBUG){
+double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, double* xkg, char * Ref, char* RefpropPath, char* herr, int DEBUGMODE){
 	int j;
 	i=0;
 	ierr=0;
@@ -589,40 +616,41 @@ double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, d
 	{
 		i=1;
 		strcpy(RefString,"");
+		strcat(RefString,FLD_PATH_CHAR);
 		strcat(RefString,Ref);
-		strcat(RefString,".ppf");
+		strcat(RefString,".PPF");
 		x[0]=1.0;     //Pseudo-Pure fluid
 	}
-	else if (!strcmp(Ref,"R507A"))
-	{
-		i=2;
-		strcpy(RefString,"R23.fld|R116.fld");
-		x[0]=0.62675;
-		x[1]=0.37325;
-	}
-	else if (!strcmp(Ref,"R410A"))
-	{
-		i=2;
-		strcpy(RefString,"R32.fld|R125.fld");
-		x[0]=0.697615;
-		x[1]=0.302385;
-	}
-	else if (!strcmp(Ref,"R404A"))
-	{
-		i=3;
-		strcpy(RefString,"R125.fld|R134a.fld|R143a.fld");
-		x[0]=0.35782;
-		x[1]=0.038264;
-		x[2]=0.60392;
-	}
-    else if (!strcmp(Ref,"Air"))
-	{
-		i=3;
-		strcpy(RefString,"Nitrogen.fld|Oxygen.fld|Argon.fld");
-		x[0]=0.7812;
-		x[1]=0.2096;
-		x[2]=0.0092;
-	}
+// 	else if (!strcmp(Ref,"R507A"))
+// 	{
+// 		i=2;
+// 		strcpy(RefString,"R23.fld|R116.fld");
+// 		x[0]=0.62675;
+// 		x[1]=0.37325;
+// 	}
+// 	else if (!strcmp(Ref,"R410A"))
+// 	{
+// 		i=2;
+// 		strcpy(RefString,"R32.fld|R125.fld");
+// 		x[0]=0.697615;
+// 		x[1]=0.302385;
+// 	}
+// 	else if (!strcmp(Ref,"R404A"))
+// 	{
+// 		i=3;
+// 		strcpy(RefString,"R125.fld|R134a.fld|R143a.fld");
+// 		x[0]=0.35782;
+// 		x[1]=0.038264;
+// 		x[2]=0.60392;
+// 	}
+//     else if (!strcmp(Ref,"Air"))
+// 	{
+// 		i=3;
+// 		strcpy(RefString,"Nitrogen.fld|Oxygen.fld|Argon.fld");
+// 		x[0]=0.7812;
+// 		x[1]=0.2096;
+// 		x[2]=0.0092;
+// 	}
 	else
 	{
 		i=1;
@@ -658,6 +686,8 @@ double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, d
 	
 	// If the name of the refrigerant doesn't match 
 	// that of the currently loaded refrigerant
+	if (DEBUGMODE) printf("Loaded fluids: %s \n",LoadedREFPROPRef);
+	if (DEBUGMODE) printf("New fluids:    %s \n",Ref);
 	if (strcmp(LoadedREFPROPRef,Ref))
 	{
 		ierr=999;

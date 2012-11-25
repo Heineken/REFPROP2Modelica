@@ -71,7 +71,7 @@ int main(int argc, char* argv[]){
 		printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
 	}
 
-	props_REFPROP  ("v", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
+	props_REFPROP  ("s", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
 	//	props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "/opt/refprop/", errormsg, DEBUG);
 		printf("Errormessage: %s\n",errormsg);
 

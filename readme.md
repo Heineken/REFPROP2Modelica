@@ -16,7 +16,7 @@ For Windows, please follow these instructions
 For installing on a Linux machine, please follow the instructions in the Makefile provided in the directory containing the Linux version of the wrapper class. You only have to type in the right directories and install all the compilers / libraries required. 
 
 1.  After downloading and unzipping rename folder containing these files to `MediaTwoPhaseMixture`.
-2.  Change the paths in `_wrapper/v0.5_linux/Makefile` to your needs.
+2.  Change the paths in `_wrapper/v0.6/Makefile` to your needs.
 3.  Make sure to have the shared library `librefprop.so` available in the same directory as the `fluids` folder. You might want to check https://github.com/jowr/librefprop.so for details. 
 4.  Got to the directory `_wrapper/v0.6/` and call `make all` and `sudo make install` as well as `sudo make fixit` to compile and install the wrapper library.
 5.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). It should look something like: constant String REFPROP_PATH = "/opt/refprop/"; 

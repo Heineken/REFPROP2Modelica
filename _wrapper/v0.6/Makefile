@@ -21,7 +21,7 @@ LN    := ln -sf
 
 # used for the output
 MAJORVERSION     =0
-MINORVERSION     =5
+MINORVERSION     =6
 THENAME          =refprop_wrapper
 LIBRARYEXTENSION =.so
 THETEST          =refpropwrappertest

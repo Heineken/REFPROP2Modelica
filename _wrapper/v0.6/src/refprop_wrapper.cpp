@@ -151,7 +151,7 @@ Poco::Path FLD_PATH(true);
 bool   debug;      		// set the debug flag
 //long   lerr;  			// Error return mechanism
 double dhelp = noValue;
-double delta = 1e-12; 	// tolerance for evaluating differences
+//double delta = 1e-20; 	// tolerance for evaluating differences
 
 
 /*
@@ -409,9 +409,9 @@ int setFluid(std::string fluid, char* error){
 
 	if (debug) printf ("\nSetting fluids\n");
 
-	char hf[refpropcharlong];
-	char hfmix[refpropcharlong];
-	char hrf[lengthofreference+1];
+	char* hf;
+	char* hfmix;
+	char* hrf;
 	std::string RefString;
 	long lerr;
 
@@ -448,6 +448,11 @@ int setFluid(std::string fluid, char* error){
 		}
 
 		if (debug) printf("RefString: %s \n",RefString.c_str());
+
+		hf    =  (char*) calloc(refpropcharlong, sizeof(char));
+		hfmix =  (char*) calloc(refpropcharlong, sizeof(char));
+		hrf   =  (char*) calloc(refpropcharlong, sizeof(char));
+
 		strcpy(hf,RefString.c_str());
 		strcpy(hfmix,FLD_PATH.toString().c_str());
 		strcat(hfmix,"HMX.BNC");
@@ -468,6 +473,9 @@ int setFluid(std::string fluid, char* error){
 			printf("REFPROP setup gives this error during SETUP: %s\n",error);
 			return lerr;
 		}
+		free(hf);
+		free(hfmix);
+		free(hrf);
 
 		//Copy the name of the loaded refrigerant back into the temporary holder
 		loadedFluids = std::string(fluid);
@@ -720,13 +728,13 @@ double getTCX_modelica(){
  */
 bool isState(double var1, double val1, double var2, double val2, double xmol[], long nc){
 	if (debug) printf ("\nChecking state.\n");
-	if (abs(var1-val1)>delta) return false;
-	if (abs(var2-val2)>delta) return false;
+	if (var1!=val1) return false;
+	if (var2!=val2) return false;
 	//if (lnc!=nc) return false;
 	// If we have a mixture, we need to check the composition.
 	if (nc>1) {
 		for ( int i = 0; i < nc; i++ ) {
-			if (abs(dxmol[i]-xmol[i])>delta) return false;
+			if (dxmol[i]!=xmol[i]) return false;
 		}
 	}
 	if (debug) printf ("Going to return \"true\".\n");
@@ -762,6 +770,37 @@ double getValue(std::string out) {
 	return noValue;
 }
 
+int updateProps(double *props, long lerr){
+	//ASSIGN VALUES TO RETURN ARRAY
+	props[0] = lerr;//error code
+	props[1] = getP_modelica();		//pressure in Pa
+	props[2] = getT_modelica();		//Temperature in K
+	props[3] = getWM_modelica();	//molecular weight
+	props[4] = getD_modelica();		//density
+	props[5] = getDL_modelica();	//density of liquid phase
+	props[6] = getDV_modelica();	//density of liquid phase
+	props[7] = getQ_modelica();		//vapor quality on a mass basis [mass vapor/total mass] (q=0 indicates saturated liquid, q=1 indicates saturated vapor)
+	props[8] = getE_modelica();		//inner energy
+	props[9] = getH_modelica();		//specific enthalpy
+	props[10] = getS_modelica();	//specific entropy
+	props[11] = getCV_modelica();
+	props[12] = getCP_modelica();
+	props[13] = getW_modelica(); 	//speed of sound
+	props[14] = getWML_modelica();
+	props[15] = getWMV_modelica();
+
+	double dxlkg[ncmax], dxvkg[ncmax];
+
+	XMASSlib(dxmoll,dxlkg,dwliq);
+	XMASSlib(dxmolv,dxvkg,dwvap);
+
+	for (int dim=0; dim<lnc; dim++){
+		//if (debug) printf("Processing %i:%f, %f \n",dim,dxlkg[dim],dxvkg[dim]);
+		props[16+dim] = dxlkg[dim];
+		props[16+lnc+dim] = dxvkg[dim];
+	}
+	return 0;
+}
 
 double props_REFPROP(char* what, char* statevars_in, char* fluidnames, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
 /*Calculates thermodynamic properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
@@ -887,6 +926,7 @@ OUTPUT
 	} else { // We have calculated it before.
 		if (valueExists) {
 			if (debug) printf("Working with old state, returning value for %s: %f.\n",out.c_str(),result);
+			updateProps(props, lerr);
 			return result;
 		}
 	}
@@ -1152,58 +1192,40 @@ OUTPUT
 //		eta/=1e6;	//uPa.s -> Pa.s
 //	}
 
-	//ASSIGN VALUES TO RETURN ARRAY
-	props[0] = lerr;//error code
-	props[1] = getP_modelica();//pressure in Pa
-	props[2] = getT_modelica();	//Temperature in K
-	props[3] = getWM_modelica();	//molecular weight
-	props[4] = getD_modelica();	//density
-	props[5] = getDL_modelica();	//density of liquid phase
-	props[6] = getDV_modelica();	//density of liquid phase
-	props[7] = getQ_modelica();	//vapor quality on a mass basis [mass vapor/total mass] (q=0 indicates saturated liquid, q=1 indicates saturated vapor)
-	props[8] = getE_modelica();	//inner energy
-	props[9] = getH_modelica();	//specific enthalpy
-	props[10] = getS_modelica();//specific entropy
-	props[11] = getCV_modelica();
-	props[12] = getCP_modelica();
-	props[13] = getW_modelica(); //speed of sound
-	props[14] = getWML_modelica();
-	props[15] = getWMV_modelica();
-
-	double dxlkg[ncmax], dxvkg[ncmax];
-
-	XMASSlib(dxmoll,dxlkg,dwliq);
-	XMASSlib(dxmolv,dxvkg,dwvap);
-
-	for (int dim=0; dim<lnc; dim++){
-		//if (debug) printf("Processing %i:%f, %f \n",dim,dxlkg[dim],dxvkg[dim]);
-		props[16+dim] = dxlkg[dim];
-		props[16+lnc+dim] = dxvkg[dim];
-	}
-
-	if (debug) printf("Returning %s \n",out.c_str());
+	updateProps(props, lerr);
 
 	if ( 0 == Poco::icompare(out, "p") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getP_modelica());
 		return getP_modelica();
 	} else if ( 0 == Poco::icompare(out, "t") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getT_modelica());
 		return getT_modelica();
 	} else if ( 0 == Poco::icompare(out, "m") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getWML_modelica());
 		return getWM_modelica();
 	} else if ( 0 == Poco::icompare(out, "d") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getD_modelica());
 		return getD_modelica();
 	} else if ( 0 == Poco::icompare(out, "q") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getQ_modelica());
 		return getQ_modelica();
 	} else if ( 0 == Poco::icompare(out, "e") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getE_modelica());
 		return getE_modelica();
 	} else if ( 0 == Poco::icompare(out, "h") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getH_modelica());
 		return getH_modelica();
 	} else if ( 0 == Poco::icompare(out, "s") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getS_modelica());
 		return getS_modelica();
 	} else if ( 0 == Poco::icompare(out, "w") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getW_modelica());
 		return getW_modelica();
 	} else if ( 0 == Poco::icompare(out, "v") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getETA_modelica());
 		return getETA_modelica();
 	} else if ( 0 == Poco::icompare(out, "l") ) {
+		if (debug) printf("Returning %s = %f\n",out.c_str(),getTCX_modelica());
 		return getTCX_modelica();
 	} else {
 		return -1.0;
@@ -1457,16 +1479,16 @@ OUTPUT
 
 	//ASSIGN VALUES TO RETURN ARRAY
 	props[0] = lerr;//error code
-	props[1] = getP_modelica();//pressure in kPa->Pa
-	props[2] = getT_modelica();	//Temperature in K
+	props[1] = getP_modelica();		//pressure in kPa->Pa
+	props[2] = getT_modelica();		//Temperature in K
 	props[3] = getWM_modelica();	//molecular weight
-	props[4] = getD_modelica();	//density
+	props[4] = getD_modelica();		//density
 	props[5] = getDL_modelica();	//density of liquid phase
 	props[6] = getDV_modelica();	//density of liquid phase
 	props[7] = 0;
 	props[8] = 0;	//inner energy
 	props[9] = 0;	//specific enthalpy
-	props[10] = 0;//specific entropy
+	props[10] = 0;	//specific entropy
 	props[11] = 0;
 	props[12] = 0;
 	props[13] = 0; //speed of sound

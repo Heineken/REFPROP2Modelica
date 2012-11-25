@@ -39,7 +39,7 @@ HEADINST   =/usr/local/include
 BINDIR     =./bin
 
 
-LIBS       =-lrefprop
+LIBS       =-lrefprop -lPocoFoundation 
 OPTFLAGS   =-O3 -ffast-math# -ffloat-store # optimisation, remove for debugging
 
 ###########################################################
@@ -48,6 +48,7 @@ OPTFLAGS   =-O3 -ffast-math# -ffloat-store # optimisation, remove for debugging
 ###########################################################
 CPPC         =g++
 CPPFLAGS     =$(OPTFLAGS) -Wall -pedantic -fbounds-check -ansi -Wpadded -Wpacked -malign-double -mpreferred-stack-boundary=8
+DEBUGFLAGS   =-g -O3
 
 ###########################################################
 #  Change these lines if you have other needs regarding
@@ -103,19 +104,9 @@ $(BINDIR)/$(HEADERFILE)$(HEADEREXTENSION): $(SRCDIR)/$(HEADERFILE)$(HEADEREXTENS
 .PHONY     : library
 library    : $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION)
 
-$(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): ian
+$(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): $(SRCDIR)/$(LIBFILE).o
+	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).o $(LIBS)
 
-.PHONY     : nopoco
-nopoco     : $(SRCDIR)/$(LIBFILE).org.o
-	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).org.o $(LIBS)
-
-.PHONY     : poco
-poco       : $(SRCDIR)/$(LIBFILE).poco.o
-	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).poco.o -lPocoFoundation
-
-.PHONY     : ian
-ian        : $(SRCDIR)/$(LIBFILE).ian.o
-	$(CPPC) $(LIBFLAGS) $(CPPFLAGS) -o $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(SRCDIR)/$(LIBFILE).ian.o -lPocoFoundation
 
 ###########################################################
 #  Compile the wrapper class tests.
@@ -123,8 +114,9 @@ ian        : $(SRCDIR)/$(LIBFILE).ian.o
 .PHONY     : test
 test       : $(BINDIR)/$(THETEST)
 
-$(BINDIR)/$(THETEST) : $(SRCDIR)/$(THETEST).o 
-	$(CPPC) $(CPPFLAGS) -o $(BINDIR)/$(THETEST) $(SRCDIR)/$(THETEST).o $(LIBS) -l$(THENAME)
+$(BINDIR)/$(THETEST) : #$(SRCDIR)/$(THETEST).o 
+	$(CPPC) $(DEBUGFLAGS) -o $(SRCDIR)/$(LIBFILE).o -c $(SRCDIR)/$(LIBFILE).cpp $(LIBS)
+	$(CPPC) $(DEBUGFLAGS) -o $(BINDIR)/$(THETEST) $(SRCDIR)/$(THETEST).cpp $(SRCDIR)/$(LIBFILE).o $(LIBS) 
 
 # .PHONY     : ian
 # ian        : $(BINDIR)/$(THETEST).ian

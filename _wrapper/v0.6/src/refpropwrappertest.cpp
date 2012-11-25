@@ -28,36 +28,38 @@ int main(int argc, char* argv[]){
 	x = (double*) calloc(nX,sizeof(double));
 	props=(double*) calloc(16+2*nX,sizeof(double));
 
-	
+
 	sumx = 0;
 	for (i=0;i<nX-1;i++){
 		x[i] = atof(argv[6+i]);
 		sumx += x[i];
 	}
 	x[nX-1] = 1-sumx;
-	
-	
+
+
 	//strcpy(fluidname,argv[1]);//water;
 	/*p=atof(argv[2]);//2000;
 	t=atof(argv[3]);//300.0;	*/
-	//d = density(fluidname, p, t, x, ""); //d:\\Programme\REFPROP\\	
-	//d = density(fluidname, p, t);	
-	//d = density(p, t);	
-	//props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "d:\\Programme\\REFPROP\\", errormsg, DEBUGMODE);
+	//d = density(fluidname, p, t, x, ""); //d:\\Programme\REFPROP\\
+	//d = density(fluidname, p, t);
+	//d = density(p, t);
+	// props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "d:\\Programme\\REFPROP\\", errormsg, DEBUGMODE);
+	// props_REFPROP  ("", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
 	props_REFPROP  ("", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
+//	props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "/opt/refprop/", errormsg, DEBUG);
 	printf("Errormessage: %s\n",errormsg);
-	printf("%c,%c,D                 %10.4f,%10.4f,%10.4f\n",argv[1][0],argv[1][1],atof(argv[3]),atof(argv[4]),props[5]);
+	//printf("%c,%c,D                 %10.4f,%10.4f,%10.4f \n",argv[1][0],argv[1][1],atof(argv[3]),atof(argv[4]),props[5]);
 	/*	props[0] = ierr;//error code
 	props[1] = p;//pressure in Pa
 	props[2] = T;	//Temperature in K
 	props[3] = wm;	//molecular weight
 	props[4] = d;	//density
-	props[5] = dl;	//density of liquid phase 
-	props[6] = dv;	//density of liquid phase 
+	props[5] = dl;	//density of liquid phase
+	props[6] = dv;	//density of liquid phase
 	props[7] = q;	//vapor quality on a mass basis [mass vapor/total mass] (q=0 indicates saturated liquid, q=1 indicates saturated vapor)
 	props[8] = e;	//inner energy*/
 	printf("h=%f J/kg\n",props[9]);	//specific enthalpy
-	printf("MM=%f J/kg\n",props[3]);	//specific enthalpy
+	printf("MM=%f kg/mol\n",props[3]);	//molar weight
 	/*props[10] = s;//specific entropy
 	props[11] = cv;
 	props[12] = cp;
@@ -68,6 +70,18 @@ int main(int argc, char* argv[]){
 		printf("Xliq[%i]=%f\t",ii+1, props[16+ii]);
 		printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
 	}
+
+	props_REFPROP  ("v", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
+	//	props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "/opt/refprop/", errormsg, DEBUG);
+		printf("Errormessage: %s\n",errormsg);
+
+		printf("s=%f J/kg\n",props[10]);	//specific enthalpy
+		printf("q=%f kg/mol\n",props[7]);	//molar weight
+
+		for (int ii=0;ii<nX;ii++){
+			printf("Xliq[%i]=%f\t",ii+1, props[16+ii]);
+			printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
+		}
 
 	//	INPUT:
 	//		what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -99,8 +113,8 @@ int main(int argc, char* argv[]){
 	T = satprops_REFPROP (what, statevar, fluidname, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
 	printf("Saturation conditions for %s\t",fluidname);
 	printf("Saturation temperature =%f\n\n",T);
-	
-	
+
+
 	strcpy(what, "T");
 	strcpy(statevar, "p");
 	strcpy(fluidname,"BUTANE");
@@ -110,8 +124,8 @@ int main(int argc, char* argv[]){
 	T = satprops_REFPROP (what, statevar, fluidname, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
 	printf("Saturation conditions for %s\t",fluidname);
 	printf("Saturation temperature =%f\n\n",T);
-	
-	
+
+
 	printf("Errormessage: %s\n\n",errormsg);
 	
 	

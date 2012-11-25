@@ -33,6 +33,9 @@
 //#define EXPORT
 //#endif // __cplusplus
 
+
+//#include <string>
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -40,7 +43,7 @@ extern "C" {
  double satprops_REFPROP(char* what, char* statevar, char* fluidnames, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
  //
  //double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, char * Ref);
- double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, double* xkg, char * Ref, char * Path, char * herr, int DEBUGMODE);
+ //double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, double* xkg, std::string Ref, std::string Path, char * herr, int DEBUGMODE);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

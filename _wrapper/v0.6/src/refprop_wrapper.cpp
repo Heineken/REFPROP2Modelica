@@ -96,25 +96,6 @@ std::string printX(double arr[], long nc) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
  * Define pointer to library as well as the
  * strings we need to determine whether a
@@ -193,11 +174,11 @@ int flushProperties(){
 	ds=noValue;
 	dqmol=noValue;
 	dd=noValue;
-	dxmol[ncmax]=noValue;
+	dxmol[0]=noValue;
 	ddl=noValue;
 	ddv=noValue;
-	dxmoll[ncmax]=noValue;
-	dxmolv[ncmax]=noValue;
+	dxmoll[0]=noValue;
+	dxmolv[0]=noValue;
 	dCv=noValue;
 	dCp=noValue;
 	dw=noValue;
@@ -450,8 +431,8 @@ int setFluid(std::string fluid, char* error){
 		if (debug) printf("RefString: %s \n",RefString.c_str());
 
 		hf    =  (char*) calloc(refpropcharlong, sizeof(char));
-		hfmix =  (char*) calloc(refpropcharlong, sizeof(char));
-		hrf   =  (char*) calloc(refpropcharlong, sizeof(char));
+		hfmix =  (char*) calloc(refpropcharlength+8, sizeof(char));
+		hrf   =  (char*) calloc(refpropcharlength, sizeof(char));
 
 		strcpy(hf,RefString.c_str());
 		strcpy(hfmix,FLD_PATH.toString().c_str());
@@ -657,20 +638,12 @@ double getDV_modelica(){
 }
 
 double getQ_modelica(){
-	//vapor quality on a mass basis [mass vapor/total mass] (q=0 indicates saturated liquid, q=1 indicates saturated vapor)
-
-//	double dxlkg[ncmax], dxvkg[ncmax];
-//	long lerr = 0;
-//	char* herr[errormessagelength];
-//	QMASSlib(dqmol,dxmoll,dxmolv,dqkg,dxlkg,dxvkg,dwliq,dwvap,lerr,herr);
-//	if (lerr!=0) {
-//			printf("Error no. %li initialising REFPROP: \"%s\"\n", lerr, errormsg);
-//			return lerr;
-//	}
-//	c           -19:  input q < 0 or > 1
-//	c     herr--error string (character*255 variable if ierr<>0)
-	if (dwvap==noValue) WMOLlib(dxmolv,dwvap);
-	return dqmol*dwvap/dwm;
+	if (lnc>1 && abs(dqmol)<990) { // maintain special values
+		if (dwvap==noValue) WMOLlib(dxmolv,dwvap);
+		return dqmol*dwvap/dwm;
+	} else {
+		return dqmol;
+	}
 }
 
 double getCV_modelica(){
@@ -1172,26 +1145,6 @@ OUTPUT
 	}
 
 
-//	//CONVERT TO SI-UNITS
-//	if (lerr==0){
-//		WMOL(xliq,wmliq);
-//		wmliq /= 1000; //g/mol -> kg/mol
-//		WMOL(xvap,wmvap);
-//		wmvap /= 1000; //g/mol -> kg/mol
-//		//printf("%d,%s\n%s\nP,T,D,H,CP            %10.4f,%10.4f,%10.4f,%10.4f,%10.4f\n",nX,hf,hfmix,p,t,d,h,wm);
-//		d *= wm*1000; //mol/dm� -> kg/m�
-//		dl *= wmliq*1000; //mol/dm� -> kg/m�
-//		dv *= wmvap*1000; //mol/dm� -> kg/m�
-//		e /= e/wm;	//kJ/mol -> J/kg
-//		h /= wm; 	//kJ/mol -> J/kg
-//		s /= wm;	//kJ/(mol�K) -> J/(kg�K)
-//		cv /= wm;
-//		cp /= wm;
-//		p *= 1000; //kPa->Pa
-//		if (nX>1 && abs(q)<990) q *= wmvap/wm; //molar bass -> mass basis
-//		eta/=1e6;	//uPa.s -> Pa.s
-//	}
-
 	updateProps(props, lerr);
 
 	if ( 0 == Poco::icompare(out, "p") ) {
@@ -1251,36 +1204,6 @@ OUTPUT
 	props: Array containing all calculated values
 	errormsg: string containing error message
 */
-//	double p, T, d, val, dl,dv,wm,wmliq,wmvap;
-//	long nX,ierr=0;
-//    char herr[errormessagelength+1];
-////    HINSTANCE RefpropdllInstance;
-////    void* RefpropdllInstance;
-////    Poco::SharedLibrary RefpropdllInstance("");
-//
-////  DEBUGMODE = 1;
-//
-//	if (DEBUGMODE)  printf("\nStarting function satprops_REFPROP...\n");
-//
-//	//initialize interface to REFPROP.dll
-//	if(props[0]=(double)init_REFPROP(fluidnames, REFPROP_PATH, &nX, herr, errormsg, DEBUGMODE)){
-//		printf("Error no. %f initializing REFPROP: \"%s\"\n", props[0], errormsg);
-//		return 0;
-//	}
-//
-//	if (DEBUGMODE)  printf("\nFunction init_REFPROP was called\n");
-//
-//	//CALCULATE MOLAR MASS
-////	WMOLdll = (fp_WMOLdllTYPE) GetProcAddress(RefpropdllInstance,"WMOLdll");
-//	WMOL = (WMOLdll_POINTER) RefpropdllInstance->getSymbol(WMOLdll_NAME);
-//	WMOL(x,wm);
-////	sprintf(errormsg," %10.4f, %10.4f, %10.4f,",x[0],x[1],wm);
-//	if (DEBUGMODE)  printf("\nFunction WMOLdll was called\n");
-//
-//	wm /= 1000; //g/mol -> kg/mol
-//
-//	if (DEBUGMODE)  printf("wm converted.\n");
-
 
 
 	long lerr = 0;

@@ -21,7 +21,7 @@ For installing on a Linux machine, please follow the instructions in the Makefil
 4.  Got to the directory `_wrapper/v0.6/` and call `make all` and `sudo make install` as well as `sudo make fixit` to compile and install the wrapper library.
 5.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). It should look something like: constant String REFPROP_PATH = "/opt/refprop/"; 
 
-To remove the files from your system, please use `sudo make uninstall`. Please be aware that you need a copy of the Poco C++ framework to compile future versions of the wrapper files yourself. You can find it at: http://pocoproject.org/. The general idea is to use this framework to implement platform independent library loading and caching, but it is still a long way to go. 
+To remove the files from your system, please use `sudo make uninstall`. Please be aware that you need a copy of the Poco C++ framework v1.3.6 or newer to compile future versions of the wrapper files yourself. You can find it at: http://pocoproject.org/ and https://github.com/pocoproject/poco or install it via your package manager with `sudo apt-get install libpoco-dev` .The general idea is to use this framework to implement platform independent library loading and caching, but it is still a long way to go. 
 
 ## General Remarks
 Please note that you need a working and licensed copy of Refprop in order to use the software provided here. This is not a replacement for Refprop.

@@ -1,5 +1,5 @@
 /*
-	header file for REFPROP_wrapper.cpp
+	header file for refprop_wrapper.cpp
 	
 	This file is released under the Modelica License 2.
 	

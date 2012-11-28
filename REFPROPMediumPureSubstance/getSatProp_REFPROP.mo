@@ -13,5 +13,5 @@ function getSatProp_REFPROP
 
  external "C" val = satprops_REFPROP(what2calc, statevar, fluidnames, props, statevarval, X, REFPROP_PATH, errormsg, debugmode);
 
- annotation (Include="#include <refprop_wrapper.h>", Library="REFPROP_wrapper");
+ annotation (Include="#include <refprop_wrapper.h>", Library="refprop_wrapper");
 end getSatProp_REFPROP;

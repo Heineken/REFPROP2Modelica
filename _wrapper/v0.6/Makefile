@@ -1,7 +1,7 @@
 # ============================================================================
 # Name        : Makefile
 # Author      : Jorrit Wronski (jowr@mek.dtu.dk) 
-# Version     : 0.3
+# Version     : 0.6
 # Copyright   : Use and modify at your own risk.
 # Description : Makefile for Refprop from Fortran and C++ tests.
 # ============================================================================
@@ -26,6 +26,8 @@ THENAME          =refprop_wrapper
 LIBRARYEXTENSION =.so
 THETEST          =refpropwrappertest
 
+# find . -type f -print0 | xargs -0 sed -i 's/!REFPROP_wrapper/refprop_wrapper/g' 
+# find . -type f -print0 | xargs -0 sed -i 's/refprop_wrapper/refprop_wrapper/g' 
 ###########################################################
 #  Setting the directories for library, header and 
 #  binary files created in this makefile. 
@@ -64,7 +66,10 @@ HEADEREXTENSION =.h
 #  Copy files to places recognised by the system.
 ###########################################################
 .PHONY     : install
-install    : header library
+install    : install_dynamic
+
+.PHONY     : install_dynamic
+install_dynamic : header library
 	$(MK) $(HEADINST) $(LIBINST)
 	$(CP) $(BINDIR)/$(HEADERFILE)$(HEADEREXTENSION) $(HEADINST)/$(HEADERFILE)$(HEADEREXTENSION)
 	$(CP) $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION) $(LIBINST)/$(LIBRARY)$(LIBRARYEXTENSION).$(MAJORVERSION).$(MINORVERSION)
@@ -74,10 +79,20 @@ install    : header library
 	$(LN) $(LIBINST)/$(LIBRARY)$(LIBRARYEXTENSION).$(MAJORVERSION) $(LIBINST)/$(LIBRARY)$(LIBRARYEXTENSION)
 	$(LD) 
 
+.PHONY     : install_static
+install_static : header $(LIBRARY).a 
+	$(MK) $(HEADINST) $(LIBINST)
+	$(CP) $(BINDIR)/$(HEADERFILE)$(HEADEREXTENSION) $(HEADINST)/$(HEADERFILE)$(HEADEREXTENSION)
+	$(CP) $(LIBRARY).a  $(LIBINST)/$(LIBRARY).a 
+	$(CH) $(HEADINST)/$(HEADERFILE)$(HEADEREXTENSION)
+	$(CH) $(LIBINST)/$(LIBRARY).a 
+	$(LD) 
+
 .PHONY     : uninstall
 uninstall  : unfixit
 	$(RM) $(HEADINST)/$(HEADERFILE)$(HEADEREXTENSION)
 	$(RM) $(LIBINST)/$(LIBRARY)$(LIBRARYEXTENSION)*
+	$(RM) $(LIBINST)/$(LIBRARY).a
 
 .PHONY     : all
 all        : header library
@@ -86,11 +101,13 @@ all        : header library
 fixit      : install
 	ln -sf $(HEADINST)/$(HEADERFILE)$(HEADEREXTENSION) $(HEADINST)/REFPROP_wrapper$(HEADEREXTENSION)
 	ln -sf $(LIBINST)/$(LIBRARY)$(LIBRARYEXTENSION)    $(LIBINST)/libREFPROP_wrapper$(LIBRARYEXTENSION)
+	ln -sf $(LIBINST)/$(LIBRARY).a                     $(LIBINST)/libREFPROP_wrapper
 
 .PHONY     : unfixit
 unfixit    : 
 	$(RM) $(HEADINST)/REFPROP_wrapper$(HEADEREXTENSION)
 	$(RM) $(LIBINST)/libREFPROP_wrapper$(LIBRARYEXTENSION)
+	$(RM) $(LIBINST)/libREFPROP_wrapper
 
 ##########################################################
 #  Compile the C++ sources into a library file that can 

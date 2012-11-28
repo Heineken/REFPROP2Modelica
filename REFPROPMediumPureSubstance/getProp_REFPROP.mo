@@ -15,5 +15,5 @@ function getProp_REFPROP
 
    external "C" val = props_REFPROP(what2calc, statevars, fluidnames, props, statevar1, statevar2, X, phase, REFPROP_PATH, errormsg, debugmode);
 
-annotation (Include="#include <refprop_wrapper.h>", Library="REFPROP_wrapper");
+annotation (Include="#include <refprop_wrapper.h>", Library="refprop_wrapper");
 end getProp_REFPROP;

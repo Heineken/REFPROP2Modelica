@@ -41,7 +41,8 @@ final constant String fluidnames= StrJoin(substanceNames,"|");
 extends Modelica.Media.Interfaces.PartialTwoPhaseMedium(
     mediumName="REFPROP Medium",
     final singleState=false,
-    fluidConstants=rpConstants);
+    fluidConstants=rpConstants,
+    ThermoStates = Choices.IndependentVariables.pT);
 //"mediumName is being checked for consistency at flowports"
 
   constant FluidConstants[nS] rpConstants(
@@ -192,6 +193,13 @@ end ThermodynamicState;
   end BaseProperties;
 
 
+
+
+
+
+
+
+
  redeclare function extends specificEntropy
   "Return specific entropy  - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
  algorithm
@@ -300,6 +308,7 @@ end setState_phX;
      annotation(LateInline=true,inverse(h=specificEnthalpy_pTX(p,T,X,phase),
                                         p=pressure_ThX(T,h,X,phase)));
    end temperature_phX;
+
 
 
 redeclare replaceable partial function extends setState_pTX
@@ -443,6 +452,14 @@ end setState_psX;
    end density_psX;
 
 
+
+
+
+
+
+
+
+
 redeclare replaceable partial function extends setState_dTX
 //      input String fluidnames;
 algorithm
@@ -451,6 +468,31 @@ algorithm
   end if;
   state := setState("dT",d,T,X,phase) ",fluidnames)";
 end setState_dTX;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 redeclare function extends dynamicViscosity

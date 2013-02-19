@@ -2,10 +2,11 @@ within MediaTwoPhaseMixture;
 partial package PartialMixtureTwoPhaseMedium "Template class for two phase medium of a mixture of substances "
 
 
-  extends Modelica.Media.Interfaces.PartialMixtureMedium;
+  extends Modelica.Media.Interfaces.PartialMixtureMedium(ThermoStates = Choices.IndependentVariables.pTX);
 //  constant Boolean smoothModel "true if the (derived) model should not generate state events";
   constant Boolean onePhase = false
   "true if the (derived) model should never be called with two-phase inputs";
+
 
 
   redeclare replaceable record extends FluidConstants
@@ -717,11 +718,13 @@ algorithm
     d := state.d;
   end density;
 
+
   redeclare replaceable function extends temperature
   "returns density from state - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
   algorithm
     T := state.T;
   end temperature;
+
 
   annotation (Documentation(info="<html>
   <h1>PartialMixtureTwoPhaseMedium</h1>

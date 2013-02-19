@@ -59,3 +59,5 @@ specificEnthalpy
 density_liq
 dynamicViscosity_liq
 dynamicViscosity_gas
+density
+temperature

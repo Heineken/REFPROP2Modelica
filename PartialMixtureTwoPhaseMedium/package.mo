@@ -651,9 +651,10 @@ annotation(Documentation(info="<html></html>"));
 end specificEnthalpy_dTX;
 
 
-redeclare replaceable function pressure
-  input ThermodynamicState state "Thermodynamic state record";
+redeclare replaceable function extends pressure
+/*  input ThermodynamicState state "Thermodynamic state record";
   output Modelica.SIunits.Pressure p;
+  */
 algorithm
   p:=state.p;
 end pressure;
@@ -709,6 +710,18 @@ algorithm
   //  eta := Modelica.Media.Water.IF97_Utilities.dynamicViscosity(state.d_g, state.T, p_sat, 1);
   end dynamicViscosity_gas;
 
+
+  redeclare replaceable function extends density
+  "returns density from state - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
+  algorithm
+    d := state.d;
+  end density;
+
+  redeclare replaceable function extends temperature
+  "returns density from state - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
+  algorithm
+    T := state.T;
+  end temperature;
 
   annotation (Documentation(info="<html>
   <h1>PartialMixtureTwoPhaseMedium</h1>

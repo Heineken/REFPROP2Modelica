@@ -15,7 +15,6 @@ getProp_REFPROP_check
 getProp_REFPROP
 setState
 specificEntropy
-density
 dewEnthalpy
 dewEntropy
 dewDensity

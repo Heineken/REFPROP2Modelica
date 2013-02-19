@@ -199,13 +199,6 @@ end ThermodynamicState;
  end specificEntropy;
 
 
-  redeclare replaceable function extends density
-  "returns density from state - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
-  algorithm
-    d := state.d;
-  end density;
-
-
 redeclare function extends dewEnthalpy "dew curve specific enthalpy"
   extends Modelica.Icons.Function;
 algorithm
@@ -465,7 +458,7 @@ algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running dynamicViscosity");
     end if;
-  eta := getProp_REFPROP_check("v", "Td",state.T,state.d,state.X,state.phase);
+  eta := getProp_REFPROP_check("v", "Td",state.T,state.d,fill(0,1),state.phase);
 end dynamicViscosity;
 
 
@@ -474,7 +467,7 @@ algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running thermalConductivity");
     end if;
-  lambda := getProp_REFPROP_check("l", "Td",state.T,state.d,state.X,state.phase);
+  lambda := getProp_REFPROP_check("l", "Td",state.T,state.d,fill(0,1),state.phase);
 end thermalConductivity;
 
 

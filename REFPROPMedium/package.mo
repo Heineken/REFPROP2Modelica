@@ -3,7 +3,7 @@ package REFPROPMedium "Two Phase Mixture Medium whose property functions are sup
 constant Boolean debugmode = false
   "print messages in functions and in refpropwrapper.lib (to see the latter, start dymosim.exe in command window)";
 
-constant String explicitVars = "ph"
+constant String explicitVars = "pT"
   "set of variables the model is explicit for, may be set to all combinations of p,h,T,d,s,d, REFPROP works internally with dT";
 final constant String fluidnames= StrJoin(substanceNames,"|");
 
@@ -183,13 +183,6 @@ end saturationTemperature;
  algorithm
   s := state.s;
  end specificEntropy;
-
-
-  redeclare replaceable function extends density
-  "returns density from state - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
-  algorithm
-    d := state.d;
-  end density;
 
 
 redeclare function extends dewEnthalpy "dew curve specific enthalpy"
@@ -507,6 +500,7 @@ end thermalConductivity;
     cv:=state.cv;
   end specificHeatCapacityCv;
 
+//TODO: setDewState & setBubbleState
 
   annotation (Documentation(info="<html>
 <p>
@@ -549,20 +543,23 @@ You can then use the BaseProperties model to define the actual medium compositio
 </pre>
 <p>Any combination of the pressure, temperature, specific enthalpy, specific entropy and density (p,T,h,s,d) can be used to define a 
 thermodynamic state. Explicit functions for all combinations exist in REFPROP and likewise in the REFPROPMedium package.
-The calculation of all variables of a thermodynamic state, however, is by default done by setState_phX, so p and h have to be 
+The calculation of all variables of a thermodynamic state, however, is by default done by setState_pTX, so p and T have to be 
 calculated from the given combination of two variables first. Actually, by doing this, REFPROP already calculates all variables 
-of the thermodynamic state, but they cannot be used directly. This is a limitation of DYMOLA, as it is not able to invert a function 
-returning an array.
-You can change the set of variables the property model is explicit for by setting the string variable explicitVars e.g. to \"pT\" or \"dT\":
+of the thermodynamic state, but they cannot be used directly. This is a limitation of MODELICA, as it is not able to invert a function 
+returning an array.</p>
+<p>You can change the set of variables the property model is explicit for by setting the string variable explicitVars e.g. to \"ph\" or \"dT\".:
 <pre>
 package Medium = REFPROPMedium(final substanceNames={\"water\"}, final explicitVars = \"pT\");
 </pre>
 </p>
-<p>All calculated values are returned in SI-Units and are mass based.
-</p>
+<p>All calculated values are returned in SI-Units and are mass based.</p>
 <p>Verbose mode can be switched on globally by setting the variable <i>debugmode</i> to <i>true</i>. This leads to many status messages from the modelica functions
   as well as from the compiled library. The latter only appear are only seen in only seen when the dymola.exe is run directly in the command window.
 
+<h2>Known issues</h2>
+Setting explicitVars to \"dT\" and giving p,h which define a state in the two-phaseregion result result in error. The reason is that p,h canot be transformed to d,T by a combination of 
+of inverse functions of the defined property functions (h(d,T) and p(d,T)). Therefore dymola inverts the problem by iteration, which fails when out of range values are assumed (e.g.
+T&lt;0).
 
 <h2>Details</h2>
   In order to take advantage of REFPROP's capability of calculating two-phase mixtures a new Medium template had to be created by merging

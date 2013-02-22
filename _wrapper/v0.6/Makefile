@@ -1,7 +1,7 @@
 # ============================================================================
 # Name        : Makefile
 # Author      : Jorrit Wronski (jowr@mek.dtu.dk) 
-# Version     : 0.6
+# Version     : 0.6.1
 # Copyright   : Use and modify at your own risk.
 # Description : Makefile for Refprop from Fortran and C++ tests.
 # ============================================================================
@@ -21,7 +21,7 @@ LN    := ln -sf
 
 # used for the output
 MAJORVERSION     =0
-MINORVERSION     =6
+MINORVERSION     =6.1
 THENAME          =refprop_wrapper
 LIBRARYEXTENSION =.so
 THETEST          =refpropwrappertest

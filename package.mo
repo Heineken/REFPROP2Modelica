@@ -1,14 +1,15 @@
 within ;
-package MediaTwoPhaseMixture 
+package REFPROP2Modelica 
 //   constant String REFPROP_PATH = "d:\\Program Files (x86)\\REFPROP\\";
      constant String REFPROP_PATH = "/opt/refprop/";
+
 
     annotation (version="0.2", uses(Modelica(version="3.2")),
     Documentation(info="<html>
 <p>
 Documentation is found in the packages. Installation directions are found in both REFPROP packages.
 </p>
-<h2> <font color=\"#EF9B13\"> Contact </font></h2>
+<h2> <font color=\"#EF9B13\"> Contact for original implementation:</font></h2>
 Henning Francke<br/>
 Helmholtz Centre Potsdam<br/>
 GFZ German Research Centre for Geosciences<br/>
@@ -21,4 +22,4 @@ Germany
  revisions="<html>
 
 </html>"));
-end MediaTwoPhaseMixture;
+end REFPROP2Modelica;

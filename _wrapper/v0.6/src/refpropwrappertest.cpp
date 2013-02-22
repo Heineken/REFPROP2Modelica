@@ -26,7 +26,7 @@ int main(int argc, char* argv[]){
 	}
 
 	x = (double*) calloc(nX,sizeof(double));
-	props=(double*) calloc(16+2*nX,sizeof(double));
+	props=(double*) calloc(18+2*nX,sizeof(double));
 
 
 	sumx = 0;
@@ -76,11 +76,14 @@ int main(int argc, char* argv[]){
 		printf("Errormessage: %s\n",errormsg);
 
 		printf("s=%f J/kg\n",props[10]);	//specific enthalpy
-		printf("q=%f kg/mol\n",props[7]);	//molar weight
+		printf("wm=%f kg/mol\n",props[7]);	//molar weight
+
+		printf("ddhp=%f kg2/m3.J\n",props[14]);	//ddhp
+		printf("ddph=%f kg/m3.Pa\n",props[15]);	//ddph
 
 		for (int ii=0;ii<nX;ii++){
-			printf("Xliq[%i]=%f\t",ii+1, props[16+ii]);
-			printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
+			printf("Xliq[%i]=%f\t",ii+1, props[18+ii]);
+			printf("Xvap[%i]=%f\n",ii+1, props[18+nX+ii]);
 		}
 
 	//	INPUT:

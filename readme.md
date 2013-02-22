@@ -10,7 +10,7 @@ If you only want to run the wrapper without compiling it from source, you can us
 
 > For Windows, please follow these instructions
 > 
-> 1.  After downloading and unzipping rename folder containing these files to `MediaTwoPhaseMixture`.
+> 1.  After downloading and unzipping rename folder containing these files to `REFPROP2Modelica`.
 > 2.  Double click on `_wrapper\v0.6\Makefile.bat`
 > 3.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). Make sure you mask the backslashes. It should look something like: constant String REFPROP_PATH = `C:\\Program Files\\REFPROP\\`;
 > 
@@ -18,7 +18,7 @@ If you only want to run the wrapper without compiling it from source, you can us
 ### Linux
 For installing on a Linux machine, please follow these instructions
 
-1.  After downloading and unzipping rename folder containing these files to `MediaTwoPhaseMixture`.
+1.  After downloading and unzipping rename folder containing these files to `REFPROP2Modelica`.
 2.  Open a command prompt in `_wrapper/v0.6/` and run `sudo make install_static`.
 3.  Make sure to have the shared library `librefprop.so` available in the same directory as the `fluids` folder. You might want to check https://github.com/jowr/librefprop.so for details. 
 4.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). It should look something like: constant String REFPROP_PATH = "/opt/refprop/"; 

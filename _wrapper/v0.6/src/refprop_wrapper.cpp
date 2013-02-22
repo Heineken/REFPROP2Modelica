@@ -77,6 +77,8 @@ SETUPdll_POINTER SETUPlib = NULL;
 XMASSdll_POINTER XMASSlib = NULL;
 XMOLEdll_POINTER XMOLElib = NULL;
 
+THERM2dll_POINTER THERM2lib = NULL;
+
 
 /*
  * Just a helper function control the output of
@@ -164,8 +166,8 @@ int flushSaturation() {
  */
 double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
 	ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
-	dhjt, dZ, dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,
-	ddddp, dd2pdt2, dd2pdtd, ddhdt,	df, deta, dtcx, dstn;
+	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,
+	ddddp, dd2pdt2, dd2pdtd, ddhdt,	df, deta, dtcx, dstn, dddhp;
 int flushProperties(){
 	dt=noValue;
 	dp=noValue;
@@ -185,7 +187,7 @@ int flushProperties(){
 	dwliq=noValue;
 	dwvap=noValue;
 	dhjt=noValue;
-	dZ=noValue;
+	dZ[0]=noValue;
 	dA=noValue;
 	dG=noValue;
 	dxkappa=noValue;
@@ -202,6 +204,7 @@ int flushProperties(){
 	deta=noValue;
 	dtcx=noValue;
 	dstn=noValue;
+	dddhp=noValue;
 	if (debug) printf ("Finished flushing normal fluid properties.\n");
 	return flushSaturation();
 }
@@ -374,6 +377,7 @@ int loadLibrary(std::string pathToRefprop, char* error) {
 		XMOLElib 	= (XMOLEdll_POINTER) 	RefpropdllInstance->getSymbol(XMOLEdll_NAME);
 		SETUPlib 	= (SETUPdll_POINTER) 	RefpropdllInstance->getSymbol(SETUPdll_NAME);
 		//
+		THERM2lib 	= (THERM2dll_POINTER) 	RefpropdllInstance->getSymbol(THERM2dll_NAME);
 		if (debug) printf ("Library instance successfully loaded.\n");
 	} else { // library was already loaded
 	  if (debug) printf ("Library instance already, not doing anything.\n");
@@ -689,6 +693,14 @@ double getTCX_modelica(){
 	return dtcx;
 }
 
+// Derivative of density with respect to enthalpy at constant pressure
+double getDDHP_modelica(){
+	return dddhp*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
+}
+// Derivative of density with respect to pressure at constant enthalpy
+double getDDPH_modelica(){
+	return ddddp*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
+}
 
 
 /*
@@ -739,8 +751,60 @@ double getValue(std::string out) {
 		if (deta!=noValue) return getETA_modelica();
 	} else if ( 0 == Poco::icompare(out, "l") ) {
 		if (dtcx!=noValue) return getTCX_modelica();
+	} else if ( 0 == Poco::icompare(out, "ddhp") ) {
+		if (dddhp!=noValue) return getDDHP_modelica();
+	} else if ( 0 == Poco::icompare(out, "ddph") ) {
+		if (ddddp!=noValue) return getDDPH_modelica();
 	}
 	return noValue;
+}
+
+/*
+ * Improvised derivative computing. These functions are called
+ * after properties were calculated. Hence, we have density and
+ * pressure available. REFPROP is formulated with explicit d and
+ * T it should not take too much extra time.
+ */
+double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
+double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
+int setDensDeriv(bool debug, long lerr, char* errormsg){
+	double rho,T;
+	rho = getValue("d");
+	T = getValue("T");
+	if ((rho!=noValue)&&(T!=noValue)) { // call explicit function
+	// get derivative of density with respect to pressure from Refprop library
+	//if (debug) printf("Calling THERM2 with %f and %f.\n",dt,dd);
+	//THERM2lib (dt,dd,dxmol,dp,de,dh,ds,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
+	deltaP = 1.;
+	pLow   = dp - 0.5*deltaP;
+	pHigh  = dp + 0.5*deltaP;
+	rhoLow = 0;
+	rhoHigh = 0;
+	//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+	if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
+	PHFLSHlib(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+	if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
+	PHFLSHlib(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+	if (debug) printf("Setting ddddp from %f and %f.\n",rhoHigh,rhoLow);
+	ddddp = (rhoHigh-rhoLow) / (pHigh-pLow);
+
+	// get derivative of density with respect to enthalpy numerically
+	deltaH = 20.;
+	hLow   = dh - 0.5*deltaH;
+	hHigh  = dh + 0.5*deltaH;
+	rhoLow = 0;
+	rhoHigh = 0;
+	//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hLow);
+	PHFLSHlib(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hHigh);
+	PHFLSHlib(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+	if (debug) printf("Setting dddhp from %f and %f.\n",rhoHigh,rhoLow);
+	dddhp = (rhoHigh-rhoLow) / (hHigh-hLow);
+	} else { // We have a problem!
+		printf("Derivative calculation called at the wrong time: rho=%f and T=%f\n",rho,T);
+	}
+	return 0;
 }
 
 int updateProps(double *props, long lerr){
@@ -759,8 +823,10 @@ int updateProps(double *props, long lerr){
 	props[11] = getCV_modelica();
 	props[12] = getCP_modelica();
 	props[13] = getW_modelica(); 	//speed of sound
-	props[14] = getWML_modelica();
-	props[15] = getWMV_modelica();
+	props[14] = getDDHP_modelica(); //ddhp
+	props[15] = getDDPH_modelica(); //ddph
+	props[16] = getWML_modelica();
+	props[17] = getWMV_modelica();
 
 	double dxlkg[ncmax], dxvkg[ncmax];
 
@@ -769,8 +835,8 @@ int updateProps(double *props, long lerr){
 
 	for (int dim=0; dim<lnc; dim++){
 		//if (debug) printf("Processing %i:%f, %f \n",dim,dxlkg[dim],dxvkg[dim]);
-		props[16+dim] = dxlkg[dim];
-		props[16+lnc+dim] = dxvkg[dim];
+		props[18+dim] = dxlkg[dim];
+		props[18+lnc+dim] = dxvkg[dim];
 	}
 	return 0;
 }
@@ -797,6 +863,7 @@ OUTPUT
 //    Poco::SharedLibrary RefpropdllInstance("");
 
 	long lerr = 0;
+
 
 
 //    DEBUGMODE = 1;
@@ -1052,7 +1119,6 @@ OUTPUT
 			break;
 		}
 
-
 	switch(lerr){
 		case 1:
 			sprintf(errormsg,"T=%f < Tmin",dt);
@@ -1141,6 +1207,8 @@ OUTPUT
 			break;
 		default:
 			//strncpy(errormsg,errormsg,errormessagelength);
+			// If we get this far, derivatives must be missing as well.
+			setDensDeriv(debug, lerr, errormsg);
 			break;
 	}
 
@@ -1415,8 +1483,10 @@ OUTPUT
 	props[11] = 0;
 	props[12] = 0;
 	props[13] = 0; //speed of sound
-	props[14] = getWML_modelica();
-	props[15] = getWMV_modelica();
+	props[14] = getDDHP_modelica(); //ddhp
+	props[15] = getDDPH_modelica(); //ddph
+	props[16] = getWML_modelica();
+	props[17] = getWMV_modelica();
 
 	double dxlkg[ncmax], dxvkg[ncmax];
 
@@ -1424,8 +1494,8 @@ OUTPUT
 	XMASSlib(dxmolv,dxvkg,dwvap);
 
 	for (int ii=0;ii<lnc;ii++){
-		props[16+ii] = dxlkg[ii];
-		props[16+lnc+ii] = dxvkg[ii];
+		props[18+ii] = dxlkg[ii];
+		props[18+lnc+ii] = dxvkg[ii];
 	}
 
 	if (debug) printf("Returning %s\n",out.c_str());

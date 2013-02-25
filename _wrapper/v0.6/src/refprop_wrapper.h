@@ -12,7 +12,8 @@
 	Telegrafenberg, D-14473 Potsdam
 
 
-	Modified for Linux in 2012 by
+	Modified for Linux and extended in 2012
+	and in 2013 by
 	Jorrit Wronski (jowr@mek.dtu.dk)
 	DTU Mechanical Engineering
 */
@@ -20,30 +21,11 @@
 #ifndef REFPROP_WRAPPER
 #define REFPROP_WRAPPER
 
-
-//wenn die Datei .c hei�t
-//extern double density(double p, double T); //declaration
-
-
-//wenn dies eine .cpp ist
-// Define export
-//#ifdef __cplusplus
-//#define EXPORT __declspec(dllexport)
-//#else
-//#define EXPORT
-//#endif // __cplusplus
-
-
-//#include <string>
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
- double props_REFPROP(char* what, char* statevars, char* fluidnames, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
- double satprops_REFPROP(char* what, char* statevar, char* fluidnames, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
- //
- //double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, char * Ref);
- //double REFPROP(char Output,char Name1, double Prop1, char Name2, double Prop2, double* xkg, std::string Ref, std::string Path, char * herr, int DEBUGMODE);
+  double props_REFPROP(char* what, char* statevars, char* fluidnames, double *ders, double *trns, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
+  double satprops_REFPROP(char* what, char* statevar, char* fluidnames, double *ders, double *trns, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE); //declaration;
 #ifdef __cplusplus
 }
 #endif // __cplusplus

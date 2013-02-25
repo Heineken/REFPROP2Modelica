@@ -1,7 +1,7 @@
 within REFPROP2Modelica.Testers;
 package Water_MixtureTwoPhase_pT
   "(incomplete) Water model from Modelica.Media compatible to PartialMixtureTwoPhaseMedium (Example use)"
- extends REFPROP2Modelica.Interfaces.PartialMixtureTwoPhaseMediumTwo(
+ extends REFPROP2Modelica.Interfaces.PartialMixtureTwoPhaseMedium(
    final mediumName="TwoPhaseMixtureWater",
    final substanceNames={"water"},
    final reducedX = true,

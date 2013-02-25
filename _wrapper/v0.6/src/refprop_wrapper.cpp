@@ -1,16 +1,15 @@
 /*
-	wrapper file for refprop.
+	This is a wrapper file for the Refprop library. It does not include
+	any functionality besides providing the connection to Refprop.
+
+	The current version was developed by Jorrit Wronski (jowr@mek.dtu.dk)
+	based on Henning Francke's (francke@gfz-potsdam.de) wrapper. A little
+	inspiration also came from Ian Bell's (ian.h.bell@gmail.com) wrapper
+	used in CoolProp - http://coolprop.sourceforge.net/
 	
-	Compatible to the Modelica interface developed by
-	Henning Francke (francke@gfz-potsdam.de) and his first
-	wrapper class that you can find in the folder with
-	version 0.5 for Windows systems.
-	
-	Partly based on the Refprop wrapper used in CoolProp by
-	Ian Bell (ian.h.bell@gmail.com) - http://coolprop.sourceforge.net/
-	
-	Changes to produce this file by Jorrit Wronski (jowr@mek.dtu.dk)
-	
+	Compatible to the Modelica interface developed by Henning Francke
+	(francke@gfz-potsdam.de) and his first wrapper class that you can
+	find in the folder with version 0.5 for Windows systems.
 */
 
 /*
@@ -78,6 +77,7 @@ XMASSdll_POINTER XMASSlib = NULL;
 XMOLEdll_POINTER XMOLElib = NULL;
 
 THERM2dll_POINTER THERM2lib = NULL;
+DHD1dll_POINTER DHD1lib = NULL;
 
 
 /*
@@ -167,7 +167,12 @@ int flushSaturation() {
 double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
 	ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
 	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,
-	ddddp, dd2pdt2, dd2pdtd, ddhdt,	df, deta, dtcx, dstn, dddhp;
+	ddddp, dd2pdt2, dd2pdtd, ddhdt,	df, deta, dtcx, dstn;
+
+double ddhdt_d, ddhdt_p, ddhdd_t, ddhdd_p, ddhdp_t, ddhdp_d;
+
+double ddddp_h_num, ddddh_p_num; // get numerical derivatives
+
 int flushProperties(){
 	dt=noValue;
 	dp=noValue;
@@ -204,7 +209,17 @@ int flushProperties(){
 	deta=noValue;
 	dtcx=noValue;
 	dstn=noValue;
-	dddhp=noValue;
+
+	ddhdt_d=noValue;
+	ddhdt_p=noValue;
+	ddhdd_t=noValue;
+	ddhdd_p=noValue;
+	ddhdp_t=noValue;
+	ddhdp_d=noValue;
+
+	ddddp_h_num=noValue;
+	ddddh_p_num=noValue;
+
 	if (debug) printf ("Finished flushing normal fluid properties.\n");
 	return flushSaturation();
 }
@@ -378,6 +393,8 @@ int loadLibrary(std::string pathToRefprop, char* error) {
 		SETUPlib 	= (SETUPdll_POINTER) 	RefpropdllInstance->getSymbol(SETUPdll_NAME);
 		//
 		THERM2lib 	= (THERM2dll_POINTER) 	RefpropdllInstance->getSymbol(THERM2dll_NAME);
+		DHD1lib     = (DHD1dll_POINTER) 	RefpropdllInstance->getSymbol(DHD1dll_NAME);
+
 		if (debug) printf ("Library instance successfully loaded.\n");
 	} else { // library was already loaded
 	  if (debug) printf ("Library instance already, not doing anything.\n");
@@ -693,13 +710,74 @@ double getTCX_modelica(){
 	return dtcx;
 }
 
+double getHJT_modelica() {	// isenthalpic Joule-Thompson coefficient [K/kPa]/1000Pa*kPa = K/Pa
+	return dhjt/1000;
+}
+//double* getZ_modelica() {	// compressibility factor (= PV/RT) [dimensionless]
+//	return dZ;
+//}
+double getA_modelica() {	// Helmholtz energy [J/mol]
+	return dA/dwm * 1000.0; // J/mol / g/mol * 1000g/kg = J/kg
+}
+double getG_modelica() {	// Gibbs free energy [J/mol]
+	return dG/dwm * 1000.0; // J/mol / g/mol * 1000g/kg = J/kg
+}
+double getXKAPPA_modelica() {	// isothermal compressibility (= -1/V dV/dP = 1/rho dD/dP) [1/kPa] /1000Pa*kPa = 1/Pa
+	return dxkappa / 1000. ;
+}
+double getBETA_modelica() {	// volume expansivity (= 1/V dV/dT = -1/rho dD/dT) [1/K]
+	return dbeta;
+}
+double getDPDD_modelica() {	// derivative dP/drho [kPa-L/mol] * 1000Pa/kPa * mol/g = Pa.m3 / kg
+	return ddpdd * 1000. / dwm;
+}
+double getD2PDD2_modelica() {	// derivative d^2P/drho^2 [kPa-L^2/mol^2] * 1000Pa/kPa * mol/g * mol/g = Pa m6 / kg2
+	return dd2pdd2 * 1000. / dwm / dwm;
+}
+double getDPDT_modelica() {	// derivative dP/dT [kPa/K] * 1000Pa/kPa = Pa/K
+	return ddpdt * 1000.;
+}
+double getDDDT_modelica() {	// derivative drho/dT [mol/(L-K)] * g/mol = kg/m3 / K
+	return ddddt * dwm;
+}
+double getDDDP_modelica() {	// derivative drho/dP [mol/(L-kPa)]
+	return ddddp*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
+}
+double getD2PDT2_modelica() {	// derivative d2P/dT2 [kPa/K^2] * 1000Pa/kPa = Pa/K2
+	return dd2pdt2 * 1000.;
+}
+double getD2PDTD_modelica() {	// derivative d2P/dTd(rho) [J/mol-K] / g/mol * 1000g/kg = J/kg.K
+	return  dd2pdtd/dwm*1000.;
+}
+
+
+double get_dhdt_d_modelica() { //dH/dT at constant density [J/(mol-K)] / g/mol * 1000g/kg = J/kg.K
+	return ddhdt_d/dwm*1000;
+}
+double get_dhdt_p_modelica() { //dH/dT at constant pressure [J/(mol-K)]
+	return ddhdt_p/dwm*1000;
+}
+double get_dhdd_t_modelica() { //dH/drho at constant temperature [(J/mol)/(mol/L)] * mol/g * 1000g/kg / g/mol = (J/kg) / (kg/m3)
+	return ddhdd_t /dwm*1000. / dwm;
+}
+double get_dhdd_p_modelica() { //dH/drho at constant pressure [(J/mol)/(mol/L)]
+	return ddhdd_p /dwm*1000. / dwm;
+}
+double get_dhdp_t_modelica() { //dH/dP at constant temperature [J/(mol-kPa)] /dwm*1000. / (1000Pa/kPa) = J/kg.Pa
+	return ddhdp_t / dwm;
+}
+double get_dhdp_d_modelica() { //dH/dP at constant density [J/(mol-kPa)]
+	return ddhdp_d / dwm;
+}
+
+// Numerical derivatives
 // Derivative of density with respect to enthalpy at constant pressure
-double getDDHP_modelica(){
-	return dddhp*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
+double get_dddh_p_num_modelica(){
+	return ddddh_p_num*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
 }
 // Derivative of density with respect to pressure at constant enthalpy
-double getDDPH_modelica(){
-	return ddddp*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
+double get_dddp_h_num_modelica(){
+	return ddddp_h_num*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
 }
 
 
@@ -751,61 +829,318 @@ double getValue(std::string out) {
 		if (deta!=noValue) return getETA_modelica();
 	} else if ( 0 == Poco::icompare(out, "l") ) {
 		if (dtcx!=noValue) return getTCX_modelica();
-	} else if ( 0 == Poco::icompare(out, "ddhp") ) {
-		if (dddhp!=noValue) return getDDHP_modelica();
-	} else if ( 0 == Poco::icompare(out, "ddph") ) {
-		if (ddddp!=noValue) return getDDPH_modelica();
 	}
 	return noValue;
 }
 
-/*
- * Improvised derivative computing. These functions are called
- * after properties were calculated. Hence, we have density and
- * pressure available. REFPROP is formulated with explicit d and
- * T it should not take too much extra time.
- */
-double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
-double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
-int setDensDeriv(bool debug, long lerr, char* errormsg){
-	double rho,T;
-	rho = getValue("d");
-	T = getValue("T");
-	if ((rho!=noValue)&&(T!=noValue)) { // call explicit function
-	// get derivative of density with respect to pressure from Refprop library
-	//if (debug) printf("Calling THERM2 with %f and %f.\n",dt,dd);
-	//THERM2lib (dt,dd,dxmol,dp,de,dh,ds,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
-	deltaP = 1.;
-	pLow   = dp - 0.5*deltaP;
-	pHigh  = dp + 0.5*deltaP;
-	rhoLow = 0;
-	rhoHigh = 0;
-	//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-	if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
-	PHFLSHlib(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-	if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
-	PHFLSHlib(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-	if (debug) printf("Setting ddddp from %f and %f.\n",rhoHigh,rhoLow);
-	ddddp = (rhoHigh-rhoLow) / (pHigh-pLow);
+///*
+// * Improvised derivative computing. These functions are called
+// * after properties were calculated. Hence, we have density and
+// * pressure available. REFPROP is formulated with explicit d and
+// * T it should not take too much extra time.
+// */
+//double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
+//double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
+//int setExtra(bool debug, long lerr, char* errormsg){
+//	double rho,T;
+//	rho = getValue("d");
+//	T = getValue("T");
+//	if ((rho!=noValue)&&(T!=noValue)) { // call explicit function
+//	// get derivative of density with respect to pressure from Refprop library
+//	if (debug) printf("Calling THERM2 with %f and %f.\n",dt,dd);
+//	THERM2lib (dt,dd,dxmol,spare5,spare6,spare8,spare9,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
+////	deltaP = 1.;
+////	pLow   = dp - 0.5*deltaP;
+////	pHigh  = dp + 0.5*deltaP;
+////	rhoLow = 0;
+////	rhoHigh = 0;
+////	//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+////	if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
+////	PHFLSHlib(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+////	if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
+////	PHFLSHlib(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+////	if (debug) printf("Setting ddddp from %f and %f.\n",rhoHigh,rhoLow);
+////	ddddp = (rhoHigh-rhoLow) / (pHigh-pLow);
+//
+//	// get derivative of density with respect to enthalpy numerically
+//	deltaH = 20.;
+//	hLow   = dh - 0.5*deltaH;
+//	hHigh  = dh + 0.5*deltaH;
+//	rhoLow = 0;
+//	rhoHigh = 0;
+//	//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+//	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hLow);
+//	PHFLSHlib(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+//	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hHigh);
+//	PHFLSHlib(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+//	if (debug) printf("Setting dddhp from %f and %f.\n",rhoHigh,rhoLow);
+//	ddddh = (rhoHigh-rhoLow) / (hHigh-hLow);
+//	} else { // We have a problem!
+//		printf("Derivative calculation called at the wrong time: rho=%f and T=%f\n",rho,T);
+//	}
+//	return 0;
+//}
 
-	// get derivative of density with respect to enthalpy numerically
-	deltaH = 20.;
-	hLow   = dh - 0.5*deltaH;
-	hHigh  = dh + 0.5*deltaH;
-	rhoLow = 0;
-	rhoHigh = 0;
-	//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hLow);
-	PHFLSHlib(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hHigh);
-	PHFLSHlib(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-	if (debug) printf("Setting dddhp from %f and %f.\n",rhoHigh,rhoLow);
-	dddhp = (rhoHigh-rhoLow) / (hHigh-hLow);
-	} else { // We have a problem!
-		printf("Derivative calculation called at the wrong time: rho=%f and T=%f\n",rho,T);
-	}
+//int updateExtra(double *der, long lerr){
+////	c  inputs:
+////	c        t--temperature [K]
+////	c      rho--molar density [mol/L]
+////	c        x--composition [array of mol frac]
+////	c  outputs:
+////	c        p--pressure [kPa]
+////	c        e--internal energy [J/mol]
+////	c        h--enthalpy [J/mol]
+////	c        s--entropy [J/mol-K]
+////	c       Cv--isochoric heat capacity [J/mol-K]
+////	c       Cp--isobaric heat capacity [J/mol-K]
+////	c        w--speed of sound [m/s]
+////	c        Z
+////	c      hjt
+////	c        A
+////	c        G
+////	c   xkappa
+////	c     beta
+////	c   dPdrho
+////	c   d2PdD2
+////	c      dPT
+////	c   drhodT
+////	c   drhodP
+////	c    d2PT2
+////	c   d2PdTD
+////	c   sparei--2 space holders for possible future properties
+//
+//
+////    subroutine DHD1(t,rho,x,dhdt_d,dhdt_p,dhdd_t,dhdd_p,dhdp_t,dhdp_d)
+////c
+////c  compute partial derivatives of enthalpy w.r.t. t, p, or rho at constant
+////c  t, p, or rho as a function of temperature, density, and composition
+////c
+////c  inputs:
+////c        t--temperature [K]
+////c      rho--molar density [mol/L]
+////c        x--composition [array of mol frac]
+////c  outputs:
+////c   get_dhdt_d_modelica();		--dH/dT at constant density [J/(mol-K)]
+////c   get_dhdt_p_modelica();		--dH/dT at constant pressure [J/(mol-K)]
+////c   get_dhdd_t_modelica();		--dH/drho at constant temperature [(J/mol)/(mol/L)]
+////c   get_dhdd_p_modelica();		--dH/drho at constant pressure [(J/mol)/(mol/L)]
+////c   get_dhdp_t_modelica();		--dH/dP at constant temperature [J/(mol-kPa)]
+////c   get_dhdp_d_modelica();		--dH/dP at constant density [J/(mol-kPa)]
+//
+////	double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
+////		ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
+////
+
+
+//
+//
+//
+//
+//	getDDDH
+//
+//
+//
+//
+////	THERM2lib (dt,dd,dxmol,spare5,spare6,spare8,spare9,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
+//
+//	//ASSIGN VALUES TO RETURN ARRAY
+//	der[0] = lerr;//error code
+//	der[1] = getP_modelica();   //pressure in Pa
+//	der[2] = getT_modelica();   //Temperature in K
+//	der[3] = getWM_modelica();  //molecular weight
+//	der[4] = getD_modelica();   //density
+//	der[5] = getDL_modelica();  //density of liquid phase
+//	der[6] = getDV_modelica();  //density of liquid phase
+//	der[7] = getQ_modelica();   //vapor quality on a mass basis [mass vapor/total mass] (q=0 indicates saturated liquid, q=1 indicates saturated vapor)
+//	der[8] = getE_modelica();   //internal energy
+//	der[9] = getH_modelica();   //specific enthalpy
+//	der[10] = getS_modelica();  //specific entropy
+//	der[11] = getCV_modelica(); // heat capacity
+//	der[12] = getCP_modelica(); // heat capacity
+//	der[13] = getW_modelica();  //speed of sound
+//	der[14] = getDDDH_modelica(); //ddhp
+//	der[15] = getDDDP_modelica(); //ddph
+//	der[16] = getWML_modelica();
+//	der[17] = getWMV_modelica();
+//
+//	double dxlkg[ncmax], dxvkg[ncmax];
+//
+//
+//	return 0;
+//}
+
+
+
+int updateDers(double *ders, long lerr){
+	//ASSIGN VALUES TO RETURN ARRAY
+	ders[0]  = lerr;//error code
+	ders[1]  = getHJT_modelica(); 		// isenthalpic Joule-Thompson coefficient [K/Pa]
+	ders[2]  = getA_modelica();			// Helmholtz energy [J/kg]
+	ders[3]  = getG_modelica();			// Gibbs free energy [J/kg]
+	ders[4]  = getXKAPPA_modelica();	// isothermal compressibility (= -1/V dV/dP = 1/rho dD/dP) [1/Pa]
+	ders[5]  = getBETA_modelica();		// volume expansivity (= 1/V dV/dT = -1/rho dD/dT) [1/K]
+	ders[6]  = getDPDD_modelica();		// derivative dP/drho [Pa-m3/kg]
+	ders[7]  = getD2PDD2_modelica();	// derivative d^2P/drho^2 [Pa-m6/kg2]
+	ders[8]  = getDPDT_modelica();		// derivative dP/dT [Pa/K]
+	ders[9]  = getDDDT_modelica();		// derivative drho/dT [kg/(m3-K)]
+	ders[10] = getDDDP_modelica();		// derivative drho/dP [kg/(m3-kPa)]
+	ders[11] = getD2PDT2_modelica();	// derivative d2P/dT2 [Pa/K2]
+	ders[12] = getD2PDTD_modelica();	// derivative d2P/dTd(rho) [J/kg-K]
+	ders[13] = get_dhdt_d_modelica();	// dH/dT at constant density [J/(kg-K)]
+	ders[14] = get_dhdt_p_modelica();	// dH/dT at constant pressure [J/(kg-K)]
+	ders[15] = get_dhdd_t_modelica();	// dH/drho at constant temperature [(J/kg) / (kg/m3)]
+	ders[16] = get_dhdd_p_modelica();	// dH/drho at constant pressure [(J/kg) / (kg/m3)]
+	ders[17] = get_dhdp_t_modelica();	// dH/dP at constant temperature [J/(kg-Pa)]
+	ders[18] = get_dhdp_d_modelica();	// dH/dP at constant density [J/(kg-Pa)]
+	ders[19] = get_dddh_p_num_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
+	ders[20] = get_dddp_h_num_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
 	return 0;
 }
+
+int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
+	debug = false;
+	if (DEBUGMODE) debug = true;
+	long lerr = 0;
+
+	double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
+	double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
+
+	if ((dd!=noValue)&&(dt!=noValue)) {
+		// call explicit functions in d and T
+		// get derivatives from Refprop library
+		if (debug) printf("Calling THERM2 with T=%f and rho=%f.\n",dt,dd);
+		THERM2lib (dt,dd,dxmol,spare5,spare6,spare9,spare10,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
+
+		// get derivatives of enthalpy
+		if (debug) printf("Calling DHD1 with T=%f and rho=%f.\n",dt,dd);
+		DHD1lib(dt,dd,dxmol,ddhdt_d,ddhdt_p,ddhdd_t,ddhdd_p,ddhdp_t,ddhdp_d);
+
+		// get derivative of density with respect to enthalpy numerically
+		deltaP = 0.005; // 5 Pascal difference
+		pLow   = dp - 0.5*deltaP;
+		pHigh  = dp + 0.5*deltaP;
+		rhoLow = 0;
+		rhoHigh = 0;
+		//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+		if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
+		PHFLSHlib(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+		if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
+		PHFLSHlib(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+		if (debug) printf("Setting dddp_h_num from %f and %f.\n",rhoHigh,rhoLow);
+		ddddp_h_num = (rhoHigh-rhoLow) / (pHigh-pLow);
+
+		// get derivative of density with respect to enthalpy numerically
+		deltaH = 5.; // 5 Joule total difference
+		hLow   = dh - 0.5*deltaH;
+		hHigh  = dh + 0.5*deltaH;
+		rhoLow = 0;
+		rhoHigh = 0;
+		//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+		if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hLow);
+		PHFLSHlib(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+		if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hHigh);
+		PHFLSHlib(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+		if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
+		ddddh_p_num = (rhoHigh-rhoLow) / (hHigh-hLow);
+
+	} else { // We have a problem!
+		printf("Derivatives and transport properties calculations called at the wrong time: rho=%f and T=%f\n",dd,dt);
+	}
+
+	switch(lerr){
+		case 4:
+			sprintf(errormsg,"P=%f < 0",dp);
+			break;
+		case 8:
+			sprintf(errormsg,"x out of range (component and/or sum < 0 or > 1):%s",printX(dxmol,lnc).c_str());
+			break;
+		case 12:
+			sprintf(errormsg,"x=%s out of range and P=%f < 0",printX(dxmol,lnc).c_str(),dp);
+			break;
+		case 249:
+			sprintf(errormsg,"PHFLSH error: Input value of enthalpy (%f) is outside limits",dh);
+			break;
+		default:
+			break;
+	}
+	return updateDers(ders, lerr);
+}
+
+int updateTrns(double *trns, long lerr){
+	//ASSIGN VALUES TO RETURN ARRAY
+	trns[0] = lerr;//error code
+	trns[1] = getETA_modelica(); // dynamic viscosity in Pa.s
+	trns[2] = getTCX_modelica(); // thermal conductivity in W/m.K
+	return 0;
+}
+
+int trns_REFPROP(double *trns, char* errormsg, int DEBUGMODE){
+	debug = false;
+	if (DEBUGMODE) debug = true;
+	long lerr = 0;
+
+	if ((dd!=noValue)&&(dt!=noValue)) {
+		// call explicit functions in d and T
+		// compute transport properties
+		if (debug) printf("Getting transport properties from T=%f and rho=%f.\n",dt,dd);
+		TRNPRPlib(dt,dd,dxmol,deta,dtcx,lerr,errormsg,errormessagelength);
+		if (debug) printf("Thermal conductivity is lambda=%f W/m.K.\n",dtcx);
+		if (debug) printf("Dynamic viscosity is eta=%fµPa.s.\n",deta);
+
+	} else { // We have a problem!
+		printf("Derivatives and transport properties calculations called at the wrong time: rho=%f and T=%f\n",dd,dt);
+	}
+
+	switch(lerr){
+		case -31:
+			sprintf(errormsg,"Temperature T=%f out of range for conductivity",dt);
+			break;
+		case -32:
+			sprintf(errormsg,"density d=%f out of range for conductivity",dd);
+			break;
+		case -33:
+			sprintf(errormsg,"Temperature T=%f and density d=%f out of range for conductivity",dt,dd);
+			break;
+		case -41:
+			sprintf(errormsg,"Temperature T=%f out of range for viscosity",dt);
+			break;
+		case -42:
+			sprintf(errormsg,"density d=%f out of range for viscosity",dd);
+			break;
+		case -43:
+			sprintf(errormsg,"Temperature T=%f and density d=%f out of range for viscosity",dt,dd);
+			break;
+		case -51:
+			sprintf(errormsg,"Temperature T=%f out of range for conductivity and viscosity",dt);
+			break;
+		case -52:
+			sprintf(errormsg,"density d=%f out of range for conductivity and viscosity",dd);
+			break;
+		case -53:
+			sprintf(errormsg,"Temperature T=%f and density d=%f out of range for conductivity and viscosity",dt,dd);
+			break;
+		case 39:
+			sprintf(errormsg,"model not found for thermal conductivity");
+			break;
+		case 49:
+			sprintf(errormsg,"model not found for viscosity");
+			break;
+		case 50:
+			sprintf(errormsg,"ammonia/water mixture (no properties calculated)");
+			break;
+		case 51:
+			sprintf(errormsg,"exactly at T=%f, rhoc for a pure fluid; k is infinite",dt);
+			break;
+		case -58:
+		case -59:
+			sprintf(errormsg,"ECS model did not converge");
+			break;
+		default:
+			break;
+	}
+	return updateTrns(trns, lerr);
+}
+
 
 int updateProps(double *props, long lerr){
 	//ASSIGN VALUES TO RETURN ARRAY
@@ -823,10 +1158,8 @@ int updateProps(double *props, long lerr){
 	props[11] = getCV_modelica();
 	props[12] = getCP_modelica();
 	props[13] = getW_modelica(); 	//speed of sound
-	props[14] = getDDHP_modelica(); //ddhp
-	props[15] = getDDPH_modelica(); //ddph
-	props[16] = getWML_modelica();
-	props[17] = getWMV_modelica();
+	props[14] = getWML_modelica();
+	props[15] = getWMV_modelica();
 
 	double dxlkg[ncmax], dxvkg[ncmax];
 
@@ -835,13 +1168,13 @@ int updateProps(double *props, long lerr){
 
 	for (int dim=0; dim<lnc; dim++){
 		//if (debug) printf("Processing %i:%f, %f \n",dim,dxlkg[dim],dxvkg[dim]);
-		props[18+dim] = dxlkg[dim];
-		props[18+lnc+dim] = dxvkg[dim];
+		props[16+dim] = dxlkg[dim];
+		props[16+lnc+dim] = dxvkg[dim];
 	}
 	return 0;
 }
 
-double props_REFPROP(char* what, char* statevars_in, char* fluidnames, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
+double props_REFPROP(char* what, char* statevars_in, char* fluidnames, double *ders, double *trns, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
 /*Calculates thermodynamic properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
 INPUT:
 	what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -1112,12 +1445,13 @@ OUTPUT
 	}
 
 
-	switch(tolower(what[0])){ 	//CHOOSE RETURN VARIABLE
-		case 'v':	//dynamic viscosity uPa.s
-		case 'l':	//thermal conductivity W/m.K
-			TRNPRPlib(dt,dd,dxmol,deta,dtcx,lerr,errormsg,errormessagelength);
-			break;
-		}
+//	switch(tolower(what[0])){ 	//CHOOSE RETURN VARIABLE
+//		case 'v':	//dynamic viscosity uPa.s
+//		case 'l':	//thermal conductivity W/m.K
+//			TRNPRPlib(dt,dd,dxmol,deta,dtcx,lerr,errormsg,errormessagelength);
+//			break;
+//		}
+
 
 	switch(lerr){
 		case 1:
@@ -1207,13 +1541,18 @@ OUTPUT
 			break;
 		default:
 			//strncpy(errormsg,errormsg,errormessagelength);
-			// If we get this far, derivatives must be missing as well.
-			setDensDeriv(debug, lerr, errormsg);
 			break;
 	}
 
 
 	updateProps(props, lerr);
+
+	int outVal = ders_REFPROP(ders,errormsg,debug);
+	if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
+
+	outVal = trns_REFPROP(trns,errormsg,debug);
+	if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
+
 
 	if ( 0 == Poco::icompare(out, "p") ) {
 		if (debug) printf("Returning %s = %f\n",out.c_str(),getP_modelica());
@@ -1258,7 +1597,7 @@ OUTPUT
 //---------------------------------------------------------------------------
 
 
-double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
+double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *ders, double *trns, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
 /*Calculates thermodynamic saturation properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
 INPUT:
 	what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -1483,10 +1822,8 @@ OUTPUT
 	props[11] = 0;
 	props[12] = 0;
 	props[13] = 0; //speed of sound
-	props[14] = getDDHP_modelica(); //ddhp
-	props[15] = getDDPH_modelica(); //ddph
-	props[16] = getWML_modelica();
-	props[17] = getWMV_modelica();
+	props[14] = getWML_modelica();
+	props[15] = getWMV_modelica();
 
 	double dxlkg[ncmax], dxvkg[ncmax];
 
@@ -1494,8 +1831,8 @@ OUTPUT
 	XMASSlib(dxmolv,dxvkg,dwvap);
 
 	for (int ii=0;ii<lnc;ii++){
-		props[18+ii] = dxlkg[ii];
-		props[18+lnc+ii] = dxvkg[ii];
+		props[16+ii] = dxlkg[ii];
+		props[16+lnc+ii] = dxvkg[ii];
 	}
 
 	if (debug) printf("Returning %s\n",out.c_str());

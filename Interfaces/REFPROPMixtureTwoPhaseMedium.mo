@@ -1,10 +1,11 @@
 within REFPROP2Modelica.Interfaces;
 partial package REFPROPMixtureTwoPhaseMedium
   "Two-phase mixture medium (properties supplied by REFPROP library)"
-    extends REFPROP2Modelica.Interfaces.PartialMixtureTwoPhaseMediumTwo(
+    extends REFPROP2Modelica.Interfaces.PartialMixtureTwoPhaseMedium(
     mediumName="REFPROP Medium",
     final reducedX=true,
     final singleState=false,
+    final smoothModel=true,
     reference_X=cat(
         1,
         fill(0, nX - 1),
@@ -41,9 +42,16 @@ partial package REFPROPMixtureTwoPhaseMedium
   //used by getSatProp_REFPROP_check() and getProp_REFPROP_check()
     extends Modelica.Icons.Function;
   protected
-    Real[18 + 2*nX] props;
+    Real[16 + 2*nX] props;
+    Real[21] ders;
+    Real[3] trns;
     String errormsg=StrJoin(fill("xxxx", 64), "")
       "Allocating memory, string will be written by C function, doesn't work for strings longer than 40 bytes";
+  // initial algorithm
+  //   props :=fill(1, (16 + 2*nX));
+  //   ders  :=fill(1, 19);
+  //   trns  :=fill(1, 3);
+
   end partialREFPROP;
 
   function getProp_REFPROP
@@ -51,6 +59,8 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String what2calc;
     input String statevars;
     input String fluidnames;
+    input Real[:] ders;
+    input Real[:] trns;
     input Real[:] props;
     input Real statevar1;
     input Real statevar2;
@@ -63,6 +73,8 @@ partial package REFPROPMixtureTwoPhaseMedium
         what2calc,
         statevars,
         fluidnames,
+        ders,
+        trns,
         props,
         statevar1,
         statevar2,
@@ -92,6 +104,8 @@ partial package REFPROPMixtureTwoPhaseMedium
         what2calc,
         statevars,
         fluidnames,
+        ders,
+        trns,
         props,
         statevar1,
         statevar2,
@@ -108,6 +122,8 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String what2calc;
     input String statevar;
     input String fluidnames;
+    input Real[:] ders;
+    input Real[:] trns;
     input Real[:] props;
     input Real statevarval;
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
@@ -118,6 +134,8 @@ partial package REFPROPMixtureTwoPhaseMedium
         what2calc,
         statevar,
         fluidnames,
+        ders,
+        trns,
         props,
         statevarval,
         X,
@@ -142,6 +160,8 @@ partial package REFPROPMixtureTwoPhaseMedium
         what2calc,
         statevar,
         fluidnames,
+        ders,
+        trns,
         props,
         statevarval,
         X,
@@ -161,13 +181,45 @@ redeclare record extends ThermodynamicState
 //  Density d_l "density of liquid phase";
 //  Density d_g "density of gaseous phase";
 //  MassFraction x "void fraction";
-//  SpecificInternalEnergy u "Specific energy";
+// SpecificInternalEnergy u "Specific energy";
 
-//  MolarMass MM_l "Molar Mass of liquid phase";
+// MolarMass MM_l "Molar Mass of liquid phase";
 //  MolarMass MM_g "Molar Mass of gas phase";
 //  MassFraction X_l[nX]
 //    "Composition of liquid phase (Mass fractions  in kg/kg)";
 //  MassFraction X_g[nX] "Composition of gas phase (Mass fractions  in kg/kg)";
+//    DerDensityByEnthalpy ddhp
+//    "derivative of density wrt enthalpy at constant pressure";
+//    DerDensityByPressure ddph
+//    "derivative of density wrt pressure at constant enthalpy";
+
+  Real hjt "isenthalpic Joule-Thompson coefficient [K/Pa]";
+  Modelica.SIunits.SpecificHelmholtzFreeEnergy a "Helmholtz energy";
+  Modelica.SIunits.SpecificGibbsFreeEnergy f "Gibbs free energy";
+  Modelica.SIunits.IsothermalCompressibility kappa "isothermal compressibility";
+  IsobaricExpansionCoefficient beta
+      "volume expansivity (= 1/V dV/dT = -1/rho dD/dT)";
+
+  DerPressureByDensity dpdrho_T;
+  DerDerPressureByDensityByDensity d2pdrho2_T;
+  DerPressureByTemperature dpdT_rho;
+  DerDensityByTemperature drhodT_p;
+  DerDensityByPressure drhodp_T;
+  DerDerPressureByTemperatureByTemperature d2pdT2_rho;
+  DerDerPressureByTemperatureByDensity d2pdTdrho;
+  DerEnthalpyByTemperature dhdT_rho "dH/dT at constant density";
+  DerEnthalpyByTemperature dhdT_p "dH/dT at constant pressure";
+  DerEnthalpyByDensity dhdrho_T "dH/drho at constant temperature";
+  DerEnthalpyByDensity dhdrho_p "dH/drho at constant pressure";
+  DerEnthalpyByPressure dhdp_T "dH/dP at constant temperature";
+  DerEnthalpyByPressure dhdp_rho "dH/dP at constant density";
+
+  DerDensityByEnthalpy drhodh_p "drho/dh at constant pressure";
+  DerDensityByPressure drhodp_h "drho/dp at constant enthalpy";
+
+  DynamicViscosity eta "dynamic viscosity";
+  ThermalConductivity lambda "thermal conductivity";
+
 end ThermodynamicState;
 
 // redeclare record extends ThermodynamicState
@@ -303,9 +355,11 @@ end ThermodynamicState;
   algorithm
     assert(size(X, 1) > 0, "The mass fraction vector must have at least 1 element.");
     getProp_REFPROP(
-        "",
+        "u",
         statevars,
         fluidnames,
+        ders,
+        trns,
         props,
         statevar1,
         statevar2,
@@ -328,18 +382,36 @@ end ThermodynamicState;
         s=props[11],
         cv=props[12],
         cp=props[13],
-        a=props[14],
-        ddhp=props[15],
-        ddph=props[16],
-        phase=if (props[8] > 0 and props[8] < 1) then 2 else 1);
-  //      u=props[9],
-  //      d_l=props[6],
-  //      d_g=props[7],
-  //      x=min(max(props[8], 0), 1),
-  //      MM_l=props[17],
-  //      MM_g=props[18],
-  //      X_l=props[19:18 + nX],
-  //      X_g=props[19 + nX:18 + 2*nX],
+        w=props[14],
+        phase=if (props[8] > 0 and props[8] < 1) then 2 else 1,
+        hjt=ders[2],
+        a=ders[3],
+        f=ders[4],
+        kappa=ders[5],
+        beta=ders[6],
+        dpdrho_T=ders[7],
+        d2pdrho2_T=ders[8],
+        dpdT_rho=ders[9],
+        drhodT_p=ders[10],
+        drhodp_T=ders[11],
+        d2pdT2_rho=ders[12],
+        d2pdTdrho=ders[13],
+        dhdT_rho=ders[14],
+        dhdT_p=ders[15],
+        dhdrho_T=ders[16],
+        dhdrho_p=ders[17],
+        dhdp_T=ders[18],
+        dhdp_rho=ders[19],
+        drhodh_p=ders[20],
+        drhodp_h=ders[21],
+        eta=trns[2],
+        lambda=trns[3]);
+
+    if debugmode then
+      Modelica.Utilities.Streams.print("Running state set to p,T,d,h,s ("
+      + String(state.p) + "," + String(state.T) + "," + String(state.d) + "," + String(state.h) + "," + String(state.s) + ")");
+    end if;
+
   end setState;
 
   function setState_dsX "Calculates medium properties from d,s,X"
@@ -1698,20 +1770,6 @@ end ThermodynamicState;
               phase)));
   end temperature_psX;
 
-  redeclare function extends thermalConductivity
-  algorithm
-    if debugmode then
-      Modelica.Utilities.Streams.print("Running thermalConductivity");
-    end if;
-    lambda := getProp_REFPROP_check(
-        "l",
-        "Td",
-        state.T,
-        state.d,
-        state.X,
-        state.phase);
-  end thermalConductivity;
-
 //   redeclare function vapourQuality "Return vapour quality"
 //     input ThermodynamicState state "Thermodynamic state record";
 //     output MassFraction x "Vapour quality";
@@ -1730,18 +1788,20 @@ end ThermodynamicState;
     cv := state.cv;
   end specificHeatCapacityCv;
 
+  redeclare function extends thermalConductivity
+  algorithm
+    if debugmode then
+      Modelica.Utilities.Streams.print("Running thermalConductivity");
+    end if;
+    lambda := state.lambda;
+  end thermalConductivity;
+
   redeclare function extends dynamicViscosity
   algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running dynamicViscosity");
     end if;
-    eta := getProp_REFPROP_check(
-        "v",
-        "Td",
-        state.T,
-        state.d,
-        state.X,
-        state.phase);
+    eta := state.eta;
   end dynamicViscosity;
 
   function StrJoin "Converts an Array of Strings into a string separated by |"

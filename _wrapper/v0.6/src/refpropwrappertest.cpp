@@ -14,6 +14,8 @@ int main(int argc, char* argv[]){
 	char errormsg[255+1024];
 	double* x;
 	double *props;
+	double *ders;
+	double *trns;
 	double sumx;
 	int i;
 	int nX = argc-5;
@@ -26,7 +28,9 @@ int main(int argc, char* argv[]){
 	}
 
 	x = (double*) calloc(nX,sizeof(double));
-	props=(double*) calloc(18+2*nX,sizeof(double));
+	props=(double*) calloc(16+2*nX,sizeof(double));
+	ders=(double*) calloc(21,sizeof(double));
+	trns=(double*) calloc(3,sizeof(double));
 
 
 	sumx = 0;
@@ -45,7 +49,7 @@ int main(int argc, char* argv[]){
 	//d = density(p, t);
 	// props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "d:\\Programme\\REFPROP\\", errormsg, DEBUGMODE);
 	// props_REFPROP  ("", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
-	props_REFPROP  ("", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
+	props_REFPROP  ("", argv[1], argv[2]           , ders, trns, props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
 //	props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "/opt/refprop/", errormsg, DEBUG);
 	printf("Errormessage: %s\n",errormsg);
 	//printf("%c,%c,D                 %10.4f,%10.4f,%10.4f \n",argv[1][0],argv[1][1],atof(argv[3]),atof(argv[4]),props[5]);
@@ -60,31 +64,47 @@ int main(int argc, char* argv[]){
 	props[8] = e;	//inner energy*/
 	printf("h=%f J/kg\n",props[9]);	//specific enthalpy
 	printf("MM=%f kg/mol\n",props[3]);	//molar weight
+	printf("s=%f J/kg\n",props[10]);	//specific enthalpy
+	printf("a=%f J/kg\n",ders[2]);	//helmholtz energy
+	printf("f=%f J/kg\n",ders[3]);	//gibbs energy
+	printf("dhdd_T=%f J/kg m3/kg\n",ders[15]);	//dhdd_T
+	printf("dhdd_p=%f J/kg m3/kg\n",ders[16]);	//dhdd_p
+	printf("eta=%f Pa.s \n",trns[1]);	//
+	printf("lambda=%f W/m.K\n",trns[2]);	//
+	printf("dddh_p=%f \n",ders[19]);	//
+	printf("dddp_h=%f \n\n",ders[20]);	//
+
 	/*props[10] = s;//specific entropy
 	props[11] = cv;
 	props[12] = cp;
 	props[13] = w; //speed of sound
 	props[14] = wmliq;
 	props[15] = wmvap;*/
-	for (int ii=0;ii<nX;ii++){
-		printf("Xliq[%i]=%f\t",ii+1, props[16+ii]);
-		printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
-	}
+	//for (int ii=0;ii<nX;ii++){
+	//	printf("Xliq[%i]=%f\t",ii+1, props[16+ii]);
+	//	printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
+	//}
 
-	props_REFPROP  ("s", argv[1], argv[2]           , props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
+	props_REFPROP  ("l", argv[1], argv[2]           , ders, trns, props, atof(argv[3]), atof(argv[4]), x, 0, argv[5]                   , errormsg, DEBUG);
 	//	props_REFPROP("", "pT"   , "isobutan|propane", props, 1e5          , 293.0        , x, 0, "/opt/refprop/", errormsg, DEBUG);
 		printf("Errormessage: %s\n",errormsg);
 
+		printf("h=%f J/kg\n",props[9]);	//specific enthalpy
+		printf("MM=%f kg/mol\n",props[3]);	//molar weight
 		printf("s=%f J/kg\n",props[10]);	//specific enthalpy
-		printf("wm=%f kg/mol\n",props[7]);	//molar weight
+		printf("a=%f J/kg\n",ders[2]);	//helmholtz energy
+		printf("f=%f J/kg\n",ders[3]);	//gibbs energy
+		printf("dhdd_T=%f J/kg m3/kg\n",ders[15]);	//dhdd_T
+		printf("dhdd_p=%f J/kg m3/kg\n",ders[16]);	//dhdd_p
+		printf("eta=%f Pa.s \n",trns[1]);	//
+		printf("lambda=%f W/m.K\n",trns[2]);	//
+		printf("dddh_p=%f \n",ders[19]);	//
+		printf("dddp_h=%f \n\n",ders[20]);	//
 
-		printf("ddhp=%f kg2/m3.J\n",props[14]);	//ddhp
-		printf("ddph=%f kg/m3.Pa\n",props[15]);	//ddph
-
-		for (int ii=0;ii<nX;ii++){
-			printf("Xliq[%i]=%f\t",ii+1, props[18+ii]);
-			printf("Xvap[%i]=%f\n",ii+1, props[18+nX+ii]);
-		}
+	//	for (int ii=0;ii<nX;ii++){
+	//		printf("Xliq[%i]=%f\t",ii+1, props[16+ii]);
+	//		printf("Xvap[%i]=%f\n",ii+1, props[16+nX+ii]);
+	//	}
 
 	//	INPUT:
 	//		what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -113,7 +133,7 @@ int main(int argc, char* argv[]){
 	strcpy(REFPROP_PATH,argv[5]);
 
 	double T;
-	T = satprops_REFPROP (what, statevar, fluidname, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
+	T = satprops_REFPROP (what, statevar, fluidname, ders, trns, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
 	printf("Saturation conditions for %s\t",fluidname);
 	printf("Saturation temperature =%f\n\n",T);
 
@@ -124,7 +144,7 @@ int main(int argc, char* argv[]){
 	statevarval = 1.1e5; // 1 bar
 	strcpy(REFPROP_PATH,argv[5]);
 
-	T = satprops_REFPROP (what, statevar, fluidname, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
+	T = satprops_REFPROP (what, statevar, fluidname, ders, trns, props, statevarval, x, REFPROP_PATH, errormsg, DEBUG);
 	printf("Saturation conditions for %s\t",fluidname);
 	printf("Saturation temperature =%f\n\n",T);
 

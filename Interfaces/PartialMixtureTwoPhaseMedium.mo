@@ -1,11 +1,13 @@
 within REFPROP2Modelica.Interfaces;
-partial package PartialMixtureTwoPhaseMediumTwo
+partial package PartialMixtureTwoPhaseMedium
   "Template class for two phase medium of a mixture of substances "
   extends Modelica.Media.Interfaces.PartialMixtureMedium;
   constant Boolean smoothModel = false
     "true if the (derived) model should not generate state events";
   constant Boolean onePhase =    false
     "true if the (derived) model should never be called with two-phase inputs";
+
+   //constant Real minValue = 1e-6;
 
    constant FluidConstants mixtureFluidConstants(
      iupacName =              "mixture",
@@ -58,16 +60,12 @@ redeclare replaceable record extends ThermodynamicState
       "phase of the fluid: 1 for 1-phase, 2 for two-phase, 0 for not known, e.g. interactive use";
     //PrandtlNumber Pr "prandtl number";
     //Temperature T "temperature";
-    VelocityOfSound a "velocity of sound";
+    VelocityOfSound w(min=1e-8) "velocity of sound";
     //Modelica.SIunits.CubicExpansionCoefficient beta
     //"isobaric expansion coefficient";
-    SpecificHeatCapacity cp "specific heat capacity cp";
-    SpecificHeatCapacity cv "specific heat capacity cv";
-    Density d "density";
-    DerDensityByEnthalpy ddhp
-      "derivative of density wrt enthalpy at constant pressure";
-    DerDensityByPressure ddph
-      "derivative of density wrt pressure at constant enthalpy";
+    SpecificHeatCapacity cp(min=1e-8) "specific heat capacity cp";
+    SpecificHeatCapacity cv(min=1e-8) "specific heat capacity cv";
+    Density d(min=1e-8) "density";
     //DynamicViscosity eta "dynamic viscosity";
     SpecificEnthalpy h "specific enthalpy";
     //Modelica.SIunits.Compressibility kappa "compressibility";
@@ -81,7 +79,7 @@ end ThermodynamicState;
   replaceable record SaturationProperties
     "Saturation properties of two phase medium"
     extends Modelica.Icons.Record;
-    Temperature Tsat "saturation temperature";
+    Temperature Tsat(min=1e-8) "saturation temperature";
   //   Real dTp "derivative of Ts wrt pressure";
   //   DerDensityByPressure ddldp "derivative of dls wrt pressure";
   //   DerDensityByPressure ddvdp "derivative of dvs wrt pressure";
@@ -91,7 +89,7 @@ end ThermodynamicState;
   //   Density dv "density at dew line (for pressure ps)";
   //   SpecificEnthalpy hl "specific enthalpy at bubble line (for pressure ps)";
   //   SpecificEnthalpy hv "specific enthalpy at dew line (for pressure ps)";
-    AbsolutePressure psat "saturation pressure";
+    AbsolutePressure psat(min=1e-8) "saturation pressure";
   //   SurfaceTension sigma "surface tension";
   //   SpecificEntropy sl "specific entropy at bubble line (for pressure ps)";
   //   SpecificEntropy sv "specific entropy at dew line (for pressure ps)";
@@ -102,19 +100,19 @@ end ThermodynamicState;
   end SaturationProperties;
 
 redeclare replaceable model extends BaseProperties(
-    p(stateSelect = if preferredMediumStates and
+    p(min=1e-8,stateSelect = if preferredMediumStates and
                        (basePropertiesInputChoice == InputChoice.phX or
                         basePropertiesInputChoice == InputChoice.pTX or
                         basePropertiesInputChoice == InputChoice.psX) then
                             StateSelect.prefer else StateSelect.default),
-    T(stateSelect = if preferredMediumStates and
+    T(min=1e-8,stateSelect = if preferredMediumStates and
                        (basePropertiesInputChoice == InputChoice.pTX or
                        basePropertiesInputChoice == InputChoice.dTX) then
                          StateSelect.prefer else StateSelect.default),
     h(stateSelect = if preferredMediumStates and
                        basePropertiesInputChoice == InputChoice.phX then
                          StateSelect.prefer else StateSelect.default),
-    d(stateSelect = if preferredMediumStates and
+    d(min=1e-8,stateSelect = if preferredMediumStates and
                        basePropertiesInputChoice == InputChoice.dTX then
                          StateSelect.prefer else StateSelect.default))
     import REFPROP2Modelica.Interfaces.MixtureInputChoice;
@@ -131,7 +129,7 @@ redeclare replaceable model extends BaseProperties(
     SaturationProperties sat "saturation property record";
 equation
     MM = state.molarMass;
-    R = Modelica.Constants.R/MM;
+    R = Modelica.Constants.R/max(1e-8,MM);
     if (onePhase or (basePropertiesInputChoice == InputChoice.pTX)) then
       phaseInput = 1 "Force one-phase property computation";
     else
@@ -187,7 +185,7 @@ equation
       T = temperature(state);
     end if;
     // Compute the internal energy
-    u = h - p/d;
+    u = h - p/max(1e-8,d);
     // Compute the saturation properties record
     sat = setSat_pX(state.p,state.X);
     // Event generation for phase boundary crossing
@@ -920,20 +918,20 @@ end temperature;
     annotation(Documentation(info="<html></html>"));
   end surfaceTension;
 
-    annotation(Documentation(info="<html></html>"),
-              Documentation(info="<html>
-  <h1>PartialMixtureTwoPhaseMedium</h1>
-  This is a template for two phase medium of a mixture of substances and is used by REFPROPMedium.<br/>
-  It has been created by merging PartialMixtureMedium and PartialTwoPhaseMedium from Modelica.Media.Interfaces.<br/>  
+type DerPressureByDensity = Real (unit="m2/s2");
+type DerDerPressureByDensityByDensity = Real (unit="(m5)/(kg.s2)");
+type DerPressureByTemperature = Real (unit="kg/(K.m.s2)");
+//type DerDensityByTemperature = Real (unit="kg/(m3.K)");
+//type DerDensityByPressure = Real (unit="s2/m2");
+type DerDerPressureByTemperatureByTemperature = Real (unit="kg/(m.s2.K2)");
+type DerDerPressureByTemperatureByDensity = Real (unit="(m2)/(s2.K)");
 
-<h3> Created by</h3>
-Henning Francke<br/>
-Helmholtz Centre Potsdam<br/>
-GFZ German Research Centre for Geosciences<br/>
-Telegrafenberg, D-14473 Potsdam<br/>
-Germany
-<p>
-<a href=mailto:info@xrg-simulation.de>francke@gfz-potsdam.de</a>
+type DerEnthalpyByDensity = Real (unit="J.m3/kg");
+//type DerEnthalpyByPressure = Real (unit="J.m.s2/kg");
+type DerEnthalpyByTemperature = Real (unit="J/K");
+
+    annotation(Documentation(info="<html>
+  <h1>PartialMixtureTwoPhaseMedium</h1>
   </html>
 "));
-end PartialMixtureTwoPhaseMediumTwo;
+end PartialMixtureTwoPhaseMedium;

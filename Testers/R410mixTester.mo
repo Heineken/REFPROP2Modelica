@@ -9,7 +9,7 @@ package Medium = REFPROP2Modelica.Media.R410mix(debugmode=true);
 equation
     props.p = 101325;
     h =  Medium.dewEnthalpy(props.sat);
-    props.h = h;
+    props.h = h+0.2*h*0.5*(sin(5*time)+1);
     props.d = d;
     props.Xi = {0.697615};
 end R410mixTester;

@@ -943,6 +943,53 @@ end ThermodynamicState;
               phase)));
   end density_TsX;
 
+  // explicit derivative functions for finite element models
+  redeclare function density_derp_h
+    "Return density derivative w.r.t. pressure at const specific enthalpy"
+    extends Modelica.Icons.Function;
+    input ThermodynamicState state "thermodynamic state record";
+    output DerDensityByPressure ddph "Density derivative w.r.t. pressure";
+  algorithm
+  ddph := state.drhodp_h;
+  end density_derp_h;
+
+  redeclare function density_derh_p
+    "Return density derivative w.r.t. specific enthalpy at constant pressure"
+    extends Modelica.Icons.Function;
+    input ThermodynamicState state "thermodynamic state record";
+    output DerDensityByEnthalpy ddhp
+      "Density derivative w.r.t. specific enthalpy";
+  algorithm
+  ddhp := state.drhodh_p;
+  end density_derh_p;
+
+  redeclare function density_derp_T
+    "Return density derivative w.r.t. pressure at const temperature"
+    extends Modelica.Icons.Function;
+    input ThermodynamicState state "thermodynamic state record";
+    output DerDensityByPressure ddpT "Density derivative w.r.t. pressure";
+  algorithm
+  ddpT := state.drhodp_T;
+  end density_derp_T;
+
+  redeclare function density_derT_p
+    "Return density derivative w.r.t. temperature at constant pressure"
+    extends Modelica.Icons.Function;
+    input ThermodynamicState state "thermodynamic state record";
+    output DerDensityByTemperature ddTp "Density derivative w.r.t. temperature";
+  algorithm
+  ddTp := state.drhodT_p;
+  end density_derT_p;
+
+//   redeclare function density_derX
+//     "Return density derivative w.r.t. mass fraction"
+//     extends Modelica.Icons.Function;
+//     input ThermodynamicState state "thermodynamic state record";
+//     output Density[nX] dddX "Derivative of density w.r.t. mass fraction";
+// algorithm
+//   dddX :=
+//   end density_derX;
+
   function pressure_dsX "calls REFPROP-Wrapper, returns pressure"
     extends Modelica.Icons.Function;
     input Modelica.SIunits.Density d;

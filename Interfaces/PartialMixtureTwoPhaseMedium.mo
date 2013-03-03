@@ -1,7 +1,7 @@
 within REFPROP2Modelica.Interfaces;
 partial package PartialMixtureTwoPhaseMedium
   "Template class for two phase medium of a mixture of substances "
-  extends Modelica.Media.Interfaces.PartialMixtureMedium;
+  extends Modelica.Media.Interfaces.PartialMixtureMedium(ThermoStates=inputChoice);
   constant Boolean smoothModel = false
     "true if the (derived) model should not generate state events";
   constant Boolean onePhase =    false
@@ -30,6 +30,7 @@ partial package PartialMixtureTwoPhaseMedium
 
 constant InputChoice inputChoice=MixtureInputChoice.phX
     "Default choice of input variables for property computations";
+
   type FixedPhase = Integer(min=0,max=2)
     "phase of the fluid: 1 for 1-phase, 2 for two-phase, 0 for not known, e.g. interactive use";
   record FluidLimits "validity limits for fluid model"

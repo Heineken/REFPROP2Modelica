@@ -171,7 +171,7 @@ double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
 
 double ddhdt_d, ddhdt_p, ddhdd_t, ddhdd_p, ddhdp_t, ddhdp_d;
 
-double ddddp_h_num, ddddh_p_num; // get numerical derivatives
+double ddddp_h, ddddh_p;
 
 int flushProperties(){
 	dt=noValue;
@@ -217,8 +217,8 @@ int flushProperties(){
 	ddhdp_t=noValue;
 	ddhdp_d=noValue;
 
-	ddddp_h_num=noValue;
-	ddddh_p_num=noValue;
+	ddddp_h=noValue;
+	ddddh_p=noValue;
 
 	if (debug) printf ("Finished flushing normal fluid properties.\n");
 	return flushSaturation();
@@ -397,7 +397,7 @@ int loadLibrary(std::string pathToRefprop, char* error) {
 
 		if (debug) printf ("Library instance successfully loaded.\n");
 	} else { // library was already loaded
-	  if (debug) printf ("Library instance already, not doing anything.\n");
+	  if (debug) printf ("Library instance already loaded, not doing anything.\n");
 	}
 	return 0;
 }
@@ -772,12 +772,12 @@ double get_dhdp_d_modelica() { //dH/dP at constant density [J/(mol-kPa)]
 
 // Numerical derivatives
 // Derivative of density with respect to enthalpy at constant pressure
-double get_dddh_p_num_modelica(){
-	return ddddh_p_num*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
+double get_dddh_p_modelica(){
+	return ddddh_p*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
 }
 // Derivative of density with respect to pressure at constant enthalpy
-double get_dddp_h_num_modelica(){
-	return ddddp_h_num*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
+double get_dddp_h_modelica(){
+	return ddddp_h*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
 }
 
 
@@ -992,8 +992,8 @@ int updateDers(double *ders, long lerr){
 	ders[16] = get_dhdd_p_modelica();	// dH/drho at constant pressure [(J/kg) / (kg/m3)]
 	ders[17] = get_dhdp_t_modelica();	// dH/dP at constant temperature [J/(kg-Pa)]
 	ders[18] = get_dhdp_d_modelica();	// dH/dP at constant density [J/(kg-Pa)]
-	ders[19] = get_dddh_p_num_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
-	ders[20] = get_dddp_h_num_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
+	ders[19] = get_dddh_p_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
+	ders[20] = get_dddp_h_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
 	return 0;
 }
 
@@ -1015,33 +1015,50 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 		if (debug) printf("Calling DHD1 with T=%f and rho=%f.\n",dt,dd);
 		DHD1lib(dt,dd,dxmol,ddhdt_d,ddhdt_p,ddhdd_t,ddhdd_p,ddhdp_t,ddhdp_d);
 
-		// get derivative of density with respect to enthalpy numerically
-		deltaP = 0.005; // 5 Pascal difference
-		pLow   = dp - 0.5*deltaP;
-		pHigh  = dp + 0.5*deltaP;
-		rhoLow = 0;
-		rhoHigh = 0;
-		//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-		if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
-		PHFLSHlib(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-		if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
-		PHFLSHlib(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-		if (debug) printf("Setting dddp_h_num from %f and %f.\n",rhoHigh,rhoLow);
-		ddddp_h_num = (rhoHigh-rhoLow) / (pHigh-pLow);
+		/*
+		 * With the above values, the cyclic relation can be used to
+		 * determine all necessary values.
+		 *
+		 * -1 = ddddp_ana * 1/(props.state.dhdp_rho) * props.state.dhdrho_p;
+		 * ddddh_ana * props.state.dhdrho_p= 1;
+		 *
+		 * Below is a numerical approximation due to problems in the
+		 * two-phase region.
+		 */
 
-		// get derivative of density with respect to enthalpy numerically
-		deltaH = 5.; // 5 Joule total difference
-		hLow   = dh - 0.5*deltaH;
-		hHigh  = dh + 0.5*deltaH;
-		rhoLow = 0;
-		rhoHigh = 0;
-		//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-		if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hLow);
-		PHFLSHlib(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-		if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hHigh);
-		PHFLSHlib(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-		if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
-		ddddh_p_num = (rhoHigh-rhoLow) / (hHigh-hLow);
+		if (dqmol < 0. || dqmol > 1.) { // single-phase region
+			if (debug) printf ("Using single-phase derivatives.\n");
+			ddddp_h = -1. * ddhdp_d / ddhdd_p;
+			ddddh_p = 1./ddhdd_p;
+		} else { // two-phase region, get derivative of density with respect to enthalpy numerically
+			if (debug) printf ("Using two-phase derivatives.\n");
+			deltaP = 0.00005; // 0.05 Pascal difference
+			pLow   = dp - 0.5*deltaP;
+			pHigh  = dp + 0.5*deltaP;
+			rhoLow = 0;
+			rhoHigh = 0;
+			//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
+			PHFLSHlib(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+			if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
+			PHFLSHlib(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+			if (debug) printf("Setting dddp_h_num from %f and %f.\n",rhoHigh,rhoLow);
+			ddddp_h = (rhoHigh-rhoLow) / (pHigh-pLow);
+
+			// get derivative of density with respect to enthalpy numerically
+			deltaH = 0.05; // 0.05 Joule total difference
+			hLow   = dh - 0.5*deltaH;
+			hHigh  = dh + 0.5*deltaH;
+			rhoLow = 0;
+			rhoHigh = 0;
+			//PHFLSHlib(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hLow);
+			PHFLSHlib(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+			if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hHigh);
+			PHFLSHlib(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
+			if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
+			ddddh_p = (rhoHigh-rhoLow) / (hHigh-hLow);
+		}
 
 	} else { // We have a problem!
 		printf("Derivatives and transport properties calculations called at the wrong time: rho=%f and T=%f\n",dd,dt);

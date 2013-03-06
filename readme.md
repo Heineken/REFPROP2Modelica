@@ -1,4 +1,3 @@
-
 #Welcome to REFPROP2Modelica!
 This piece of software enables the user to access the Refprop fluid property database from within Modelica. The aim is to develop wrapper classes and integrate them with the `Media` framework inside Modelica. It has only been tested with Dymola sofar. 
 
@@ -11,7 +10,7 @@ If you only want to run the wrapper without compiling it from source, you can us
 > For Windows, please follow these instructions
 > 
 > 1.  After downloading and unzipping rename folder containing these files to `REFPROP2Modelica`.
-> 2.  Double click on `_wrapper\v0.6\Makefile.bat`
+> 2.  Run `_wrapper\v0.6\Makefile.bat` from your Visual Studio console.
 > 3.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). Make sure you mask the backslashes. It should look something like: constant String REFPROP_PATH = `C:\\Program Files\\REFPROP\\`;
 > 
 

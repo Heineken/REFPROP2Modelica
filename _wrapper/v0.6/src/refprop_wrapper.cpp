@@ -28,7 +28,7 @@
 #include <utility>
 #include <ctype.h> // tolower, toupper, etc
 
-#include <refprop_lib.h>
+#include "refprop_lib.h"
 //#include <refprop_names.h>
 //#include <refprop_constants.h>
 //#include <refprop_types_cpp.h>

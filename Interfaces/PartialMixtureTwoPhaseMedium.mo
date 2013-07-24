@@ -144,16 +144,9 @@ equation
         h,
         X,
         phaseInput);
-      // Compute the remaining variables.
-      // It is not possible to use the standard functions like
-      // d = density(state), because differentiation for index
-      // reduction and change of state variables would not be supported
-      // density_ph(), which has an appropriate derivative annotation,
-      // is used instead. The implementation of density_ph() uses
-      // setState with the same inputs, so there's no actual overhead
-      d = density_phX(p, h, X, phaseInput);
-      s = specificEntropy_phX(p, h, X, phaseInput);
-      T = temperature_phX(p, h, X, phaseInput);
+      d = density(state);
+      s = specificEntropy(state);
+      T = temperature(state);
     elseif (basePropertiesInputChoice == InputChoice.dTX) then
       state =
         setState_dTX(

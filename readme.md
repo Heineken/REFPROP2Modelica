@@ -9,16 +9,17 @@ Since I do not run Windows regularly, I am not able to test many things myself. 
 provide me with feedback?
 
 1.  After downloading, unpack and rename the folder to `REFPROP2Modelica`.
-2.  Run `_wrapper\Makefile.bat` from your Visual Studio console, tested with VS9.0 (2008).
-3.  Make sure to have the shared library `refprop.dll` available on your system.
-4.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). Make sure you mask the backslashes. It should look something like: constant String REFPROP_PATH = `C:\\Program Files\\REFPROP\\`;
+2.  Open `_wrapper\Makefile.bat` with a text editor and edit line 23 and 24 according to your system (Dymola 2013 FD01, Dymola 2014 or ...).
+3.  Run `_wrapper\Makefile.bat` from your Visual Studio console, tested with VS 2008 and VS 2010 Express.
+4.  Make sure to have the shared library `refprop.dll` available on your system. This can be done by going to (Right click)Computer > Properties > Advanced system settings > Environment Variables. In the bottom half of the window (called System variables), select 'Path' and click 'Edit...'. This will open a new window called Edit System Variable'. Add the REFPROP directory path with a leading semicolon at the end in 'Variable value'. This directory path could be, e.g., C:\Program Files\REFPROP\ or C:\Program Files (x86)\REFPROP depending on your operating system.
+5.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). Make sure you mask the backslashes. It should look something like: constant String REFPROP_PATH = `C:\\Program Files\\REFPROP\\`; or constant String REFPROP_PATH = C:\\Program Files (x86)\\REFPROP\\
 
 
 ### Linux
 For installing on a Linux machine, please follow these instructions
 
 1.  After downloading, unpack and rename the folder to `REFPROP2Modelica`.
-2.  Open a command prompt in `_wrapper`, then run `make all` and `sudo make install_static`.
+2.  Open a command prompt in `_wrapper`, then run `make all` and `sudo make install`.
 3.  Make sure to have the shared library `librefprop.so` available on your system. You might want to check https://github.com/jowr/librefprop.so for details. 
 4.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). It should look something like: constant String REFPROP_PATH = "/opt/refprop/"; 
 5.  If you experience problems with older versions of this package, you can run `sudo make fixit` to create additonal aliases. This compiles and installs a dynamic library on your system. 

@@ -9,7 +9,7 @@ Since I do not run Windows regularly, I am not able to test many things myself. 
 provide me with feedback?
 
 1.  After downloading, unpack and rename the folder to `REFPROP2Modelica`.
-2.  Run `_wrapper\v0.7\Makefile.bat` from your Visual Studio console, tested with VS9.0 (2008).
+2.  Run `_wrapper\Makefile.bat` from your Visual Studio console, tested with VS9.0 (2008).
 3.  Make sure to have the shared library `refprop.dll` available on your system.
 4.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). Make sure you mask the backslashes. It should look something like: constant String REFPROP_PATH = `C:\\Program Files\\REFPROP\\`;
 
@@ -18,7 +18,7 @@ provide me with feedback?
 For installing on a Linux machine, please follow these instructions
 
 1.  After downloading, unpack and rename the folder to `REFPROP2Modelica`.
-2.  Open a command prompt in `_wrapper/v0.7/`, then run `make all` and `sudo make install_static`.
+2.  Open a command prompt in `_wrapper`, then run `make all` and `sudo make install_static`.
 3.  Make sure to have the shared library `librefprop.so` available on your system. You might want to check https://github.com/jowr/librefprop.so for details. 
 4.  Set the path to the REFPROP program directory with the constant String REFPROP_PATH (at the beginning of the Modelica package). It should look something like: constant String REFPROP_PATH = "/opt/refprop/"; 
 5.  If you experience problems with older versions of this package, you can run `sudo make fixit` to create additonal aliases. This compiles and installs a dynamic library on your system. 

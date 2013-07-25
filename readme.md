@@ -1,5 +1,5 @@
 #Welcome to REFPROP2Modelica!
-This piece of software enables the user to access the Refprop fluid property database from within Modelica. The aim is to develop wrapper classes and integrate them with the `Media` framework inside Modelica. It has only been tested with Dymola sofar. 
+This piece of software enables the user to access the Refprop fluid property database from within Modelica. Even though the code base is not very mature yet, this package seems to be the only solution to access properties of mixtures from within Modelica on both Windows and Linux systems. The aim is to develop wrapper classes and integrate them with the `Media` framework inside Modelica. It has only been tested with Dymola sofar. 
 
 ## Installation Instructions
 You can use the provided makefiles to compile and install the wrapper. The process should be straightforward. You can get the latest release from https://github.com/jowr/REFPROP2Modelica/releases

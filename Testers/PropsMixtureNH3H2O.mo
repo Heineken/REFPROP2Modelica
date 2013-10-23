@@ -25,8 +25,6 @@ equation
   X[2] = 1 - X[1];
   T = 350 + 100 * time;
   state = Medium.setState_dTX(d,T,X);
-
   p = Medium.pressure(state);
   q = Medium.vapourQuality(state);
-
 end PropsMixtureNH3H2O;

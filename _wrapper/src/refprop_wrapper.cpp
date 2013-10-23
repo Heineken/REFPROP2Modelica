@@ -803,6 +803,12 @@ double initRefprop() {
 			printf("check types and names in header file.\n");
 			return FAIL;
 		}
+		// Set the desired equation of state, consult the Refprop
+		// documentation for more details.
+		// 0 : use default values
+		// 2 : force Peng-Robinson
+		long eosSwitch = 0;
+		PREOSdll(eosSwitch);
 		return OK;
 	} else {
 		if (debug) printf ("Library loaded, not doing anything.\n");

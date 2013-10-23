@@ -32,7 +32,7 @@ equation
 //   props.state.x = 0.5;
 //    props.Xi = {.5};
 //    props.X = {.1,.9};
-    props.Xi = {.5};
+    props.Xi = {0.5};
   //  d = props.d;
   //h = props.h;
   //h = Medium.dewEnthalpy(props.sat);

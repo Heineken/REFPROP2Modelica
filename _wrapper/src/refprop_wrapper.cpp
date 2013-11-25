@@ -612,7 +612,7 @@ double loadLibrary() {
 	if (RefpropdllInstance == NULL) { // Refprop is not loaded
 #if defined(__ISWINDOWS__)
 #if   defined(UNICODE)
-		RefpropdllInstance = LoadLibrary((LPCWSTR)libName);
+		RefpropdllInstance = LoadLibraryW((LPCWSTR)libName);
 #else
 		RefpropdllInstance = LoadLibrary((LPCSTR)libName);
 #endif
@@ -1907,11 +1907,11 @@ OUTPUT
 
 	updateProps(props, lerr);
 
-	int outVal = ders_REFPROP(ders,errormsg,debug);
-	if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
+	//int outVal = ders_REFPROP(ders,errormsg,debug);
+	//if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
 
-	outVal = trns_REFPROP(trns,errormsg,debug);
-	if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
+	//outVal = trns_REFPROP(trns,errormsg,debug);
+	//if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
 
 
 	if ( strCompare(out, "p") ) {

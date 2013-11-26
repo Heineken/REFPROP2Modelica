@@ -39,10 +39,10 @@ int main(int argc, char* argv[]){
 
 	double p  = 50.e5;
     double h  = 3.0e5;
-	double dh = 25e1;
+	double dh = 2.5e6;
 
-	int N     = 390; // steps in enthalpy
-	int M     = 253; // repetitions
+	int N     = 500; // steps in enthalpy
+	int M     =   1; // repetitions
 
 	double res  = 0.0;
 	double h_in = 0.0;

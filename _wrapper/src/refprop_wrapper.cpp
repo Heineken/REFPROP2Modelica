@@ -983,7 +983,7 @@ double getS_modelica() {
 
 double getWM_modelica(){
 	//molecular weight
-	return dwm/1000;
+	return dwm/1000;  // g/mol to kg/mol
 }
 
 double getDL_modelica(){
@@ -1369,6 +1369,12 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 			ddddp_h = -1. * ddhdp_d / ddhdd_p;
 			ddddh_p = 1./ddhdd_p;
 		} else { // two-phase region, get derivative of density with respect to enthalpy numerically
+			
+
+			// TODO
+			ddddp_h = -1;
+			ddddh_p = -1;
+			/*
 			if (debug) printf ("Using two-phase derivatives.\n");
 			deltaP = 0.00005; // 0.05 Pascal difference
 			pLow   = dp - 0.5*deltaP;
@@ -1396,6 +1402,7 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 			PHFLSHdll(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
 			if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
 			ddddh_p = (rhoHigh-rhoLow) / (hHigh-hLow);
+			*/
 		}
 
 	} else { // We have a problem!
@@ -1674,7 +1681,7 @@ OUTPUT
 	// Set variables to input values
 	if ( strCompare(in1, in2) ) {
 		sprintf(errormsg,"State variable 1 is the same as state variable 2 (%s)\n",in1.c_str());
-		return -1;
+		return FAIL;
 	}
 
 	memcpy(dxmol, dxmoltmp, sizeof(dxmoltmp)) ;
@@ -1907,12 +1914,15 @@ OUTPUT
 
 	updateProps(props, lerr);
 
-	//int outVal = ders_REFPROP(ders,errormsg,debug);
-	//if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
 
-	//outVal = trns_REFPROP(trns,errormsg,debug);
-	//if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
+	// TODO
+	/*
+	int outVal = ders_REFPROP(ders,errormsg,debug);
+	if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
 
+	outVal = trns_REFPROP(trns,errormsg,debug);
+	if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
+	*/
 
 	if ( strCompare(out, "p") ) {
 		if (debug) printf("Returning %s = %f\n",out.c_str(),getP_modelica());

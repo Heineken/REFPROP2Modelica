@@ -147,6 +147,9 @@ test       : $(BINDIR)/$(THETEST)
 $(BINDIR)/$(THETEST) : $(SRCDIR)/$(LIBFILE).o ./cpptest/cpp_wrapped.cpp
 	$(CPPC) $(DEBUGFLAGS) -o $(BINDIR)/$(THETEST) ./cpptest/cpp_wrapped.cpp $(SRCDIR)/$(LIBFILE).o $(LIBS)
 
+
+#	$(CPPC) $(DEBUGFLAGS) -o $(BINDIR)/$(THETEST) ./cpptest/cpp_wrapped.cpp $(SRCDIR)/$(LIBFILE).o $(LIBS)
+
 # .PHONY     : ian
 # ian        : $(BINDIR)/$(THETEST).ian
 # 

@@ -612,7 +612,6 @@ double loadLibrary() {
 	if (RefpropdllInstance == NULL) { // Refprop is not loaded
 #if defined(__ISWINDOWS__)
 #if   defined(UNICODE)
-		//RefpropdllInstance = LoadLibrary((LPCWSTR)libName);
 		RefpropdllInstance = LoadLibraryW((LPCWSTR)libName);
 #else
 		RefpropdllInstance = LoadLibrary((LPCSTR)libName);
@@ -804,6 +803,12 @@ double initRefprop() {
 			printf("check types and names in header file.\n");
 			return FAIL;
 		}
+		// Set the desired equation of state, consult the Refprop
+		// documentation for more details.
+		// 0 : use default values
+		// 2 : force Peng-Robinson
+		long eosSwitch = 0;
+		PREOSdll(eosSwitch);
 		return OK;
 	} else {
 		if (debug) printf ("Library loaded, not doing anything.\n");
@@ -838,9 +843,6 @@ double setFluids(std::string sPath, std::string sFluids, char* error){
 
 	if (loadedFluids.compare(sFluids)) { // The fluid is not already loaded
 		std::vector<std::string> components_split = strsplit(sFluids,'|');// Split into components
-		
-		//printf ("%s \n",RefString.c_str());
-		
 		RefString.clear(); // Flush out fluid string
 
 		// Build new fluid string
@@ -981,7 +983,7 @@ double getS_modelica() {
 
 double getWM_modelica(){
 	//molecular weight
-	return dwm/1000;  // g/mol to kg/mol
+	return dwm/1000;
 }
 
 double getDL_modelica(){
@@ -1367,12 +1369,6 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 			ddddp_h = -1. * ddhdp_d / ddhdd_p;
 			ddddh_p = 1./ddhdd_p;
 		} else { // two-phase region, get derivative of density with respect to enthalpy numerically
-			
-
-			// TODO
-			ddddp_h = -1;
-			ddddh_p = -1;
-			/*
 			if (debug) printf ("Using two-phase derivatives.\n");
 			deltaP = 0.00005; // 0.05 Pascal difference
 			pLow   = dp - 0.5*deltaP;
@@ -1400,7 +1396,6 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 			PHFLSHdll(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
 			if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
 			ddddh_p = (rhoHigh-rhoLow) / (hHigh-hLow);
-			*/
 		}
 
 	} else { // We have a problem!
@@ -1679,7 +1674,7 @@ OUTPUT
 	// Set variables to input values
 	if ( strCompare(in1, in2) ) {
 		sprintf(errormsg,"State variable 1 is the same as state variable 2 (%s)\n",in1.c_str());
-		return FAIL;
+		return -1;
 	}
 
 	memcpy(dxmol, dxmoltmp, sizeof(dxmoltmp)) ;
@@ -1912,15 +1907,12 @@ OUTPUT
 
 	updateProps(props, lerr);
 
+	//int outVal = ders_REFPROP(ders,errormsg,debug);
+	//if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
 
-	// TODO
-	/*
-	int outVal = ders_REFPROP(ders,errormsg,debug);
-	if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
+	//outVal = trns_REFPROP(trns,errormsg,debug);
+	//if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
 
-	outVal = trns_REFPROP(trns,errormsg,debug);
-	if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
-	*/
 
 	if ( strCompare(out, "p") ) {
 		if (debug) printf("Returning %s = %f\n",out.c_str(),getP_modelica());

@@ -1,6 +1,6 @@
 within REFPROP2Modelica.Testers;
 model R410mixTester "Density of saturated R410 vapour"
-package Medium = REFPROP2Modelica.Media.R410mix;
+package Medium = REFPROP2Modelica.Media.R410mix(debugmode=true);
   Medium.BaseProperties props;
   Medium.Density d;
   Medium.SpecificEnthalpy h(start=300e3);

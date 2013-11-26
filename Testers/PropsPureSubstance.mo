@@ -5,7 +5,7 @@ model PropsPureSubstance
 //package Medium = REFPROPMedium(final substanceNames={"water"},  final explicitVars = "pT");
 //package Medium = REFPROPMedium(final substanceNames={"ammonia"});
 //package Medium = REFPROPMedium(final substanceNames={"co2"});
-package Medium = REFPROP2Modelica.REFPROPMediumPureSubstance (final substanceNames={"butane"});
+package Medium = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium(final substanceNames={"butane"},debugmode=true);
 //package Medium = REFPROPMediumPureSubstance(final substanceNames={"water"});
 //package Medium = REFPROPMediumPureSubstance(final substanceNames={"ammonia"},  final explicitVars = "ph");
   Medium.BaseProperties props;
@@ -15,14 +15,14 @@ package Medium = REFPROP2Modelica.REFPROPMediumPureSubstance (final substanceNam
 //  Modelica.SIunits.SpecificEnthalpy h;
 //  Modelica.SIunits.SpecificEntropy s;
 //  Modelica.SIunits.Temperature T=props.T;
-  Modelica.SIunits.Pressure psat=Medium.saturationPressure(300);
+  Modelica.SIunits.Pressure psat=Medium.saturationPressure(300,{1});
 //  Modelica.SIunits.MolarMass MM;
   Real q= Medium.vapourQuality(props.state);
 //  Modelica.SIunits.SpecificHeatCapacityAtConstantPressure cp;
 //  Modelica.SIunits.ThermalConductivity lambda= Medium.thermalConductivity(props.state);
 //  Modelica.SIunits.DynamicViscosity eta = Medium.dynamicViscosity(props.state);
   Modelica.SIunits.SpecificHeatCapacity cv=Medium.specificHeatCapacityCv(props.state);
-  Medium.SaturationProperties sat=Medium.SaturationProperties(1e5,300);
+  Medium.SaturationProperties sat=Medium.SaturationProperties(1e5,300,{1});
 equation
     props.p = 1e5 "sine_p.y";
     props.h = 0+time*722774;

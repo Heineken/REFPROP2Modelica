@@ -69,7 +69,7 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String errormsg;
   //    input Integer debug=1;
     output Real val;
-  external "C" val=  props_REFPROP(
+  external"C" val=  props_REFPROP(
         what2calc,
         statevars,
         fluidnames,
@@ -100,7 +100,6 @@ partial package REFPROPMixtureTwoPhaseMedium
   algorithm
     assert(size(X, 1) > 0, "The mass fraction vector must have at least 1 element.");
   //   Modelica.Utilities.Streams.print("Calc "+what2calc);
-
     val := getProp_REFPROP(
         what2calc,
         statevars,
@@ -113,7 +112,6 @@ partial package REFPROPMixtureTwoPhaseMedium
         X,
         phase,
         errormsg) "just passing through";
-
   //   Modelica.Utilities.Streams.print("ERR("+String(props[1])+"):"+errormsg);
     assert(props[1] == 0, "Errorcode " + String(props[1]) + " in REFPROP wrapper function:\n"
        + errormsg + "\n");
@@ -531,36 +529,6 @@ end ThermodynamicState;
         phase) ",fluidnames)";
   end setState_phX;
 
-  redeclare function extends setBubbleState
-    "set the thermodynamic state on the bubble line"
-  algorithm
-      if debugmode then
-        Modelica.Utilities.Streams.print("Running setState_phX(" + String(sat.psat) + ","
-           + String(bubbleEnthalpy(sat)) + ",X)...");
-      end if;
-      state := setState(
-          "pq",
-          sat.psat,
-          0,
-          sat.X,
-          phase) ",fluidnames)";
-  end setBubbleState;
-
-  redeclare function extends setDewState
-    "set the thermodynamic state on the bubble line"
-  algorithm
-      if debugmode then
-        Modelica.Utilities.Streams.print("Running setState_phX(" + String(sat.psat) + ","
-           + String(dewEnthalpy(sat)) + ",X)...");
-      end if;
-      state := setState(
-          "pq",
-          sat.psat,
-          1,
-          sat.X,
-          phase) ",fluidnames)";
-  end setDewState;
-
   function setState_pqX "Calculates medium properties from p,q,X"
     extends Modelica.Icons.Function;
     input Modelica.SIunits.AbsolutePressure p "Pressure";
@@ -686,34 +654,14 @@ end ThermodynamicState;
 
   redeclare function extends dewEnthalpy "dew curve specific enthalpy"
     extends Modelica.Icons.Function;
-  //algorithm
-  //  hv := getProp_REFPROP_check(
-  //      "h",
-  //      "pq",
-  //      sat.psat,
-  //      1,
-  //      sat.X,
-  //      0);
-    extends partialREFPROP;
-
   algorithm
-    assert(size(sat.X, 1) > 0, "The mass fraction vector must have at least 1 element.");
-    getProp_REFPROP(
-        "u",
+    hv := getProp_REFPROP_check(
+        "h",
         "pq",
-        fluidnames,
-        ders,
-        trns,
-        props,
         sat.psat,
         1,
         sat.X,
-        1,
-        errormsg);
-    assert(props[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
-
-    hv :=props[10];
-
+        1);
   end dewEnthalpy;
 
   redeclare function extends dewEntropy "dew curve specific entropy"
@@ -730,66 +678,26 @@ end ThermodynamicState;
 
   redeclare function extends dewDensity "dew curve specific density"
     extends Modelica.Icons.Function;
-  //algorithm
-  //  dv := getProp_REFPROP_check(
-  //    "d",
-  //    "pq",
-  //    sat.psat,
-  //    1,
-  //    sat.X,
-  //    1);
-    extends partialREFPROP;
-
   algorithm
-    assert(size(sat.X, 1) > 0, "The mass fraction vector must have at least 1 element.");
-    getProp_REFPROP(
-        "u",
-        "pq",
-        fluidnames,
-        ders,
-        trns,
-        props,
-        sat.psat,
-        1,
-        sat.X,
-        1,
-        errormsg);
-    assert(props[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
-
-    dv :=props[5];
-
+    dv := getProp_REFPROP_check(
+      "d",
+      "pq",
+      sat.psat,
+      1,
+      sat.X,
+      1);
   end dewDensity;
 
   redeclare function extends bubbleEnthalpy "boiling curve specific enthalpy"
     extends Modelica.Icons.Function;
-  //algorithm
-  //  hl := getProp_REFPROP_check(
-  //    "h",
-  //    "pq",
-  //    sat.psat,
-  //    0,
-  //    sat.X,
-  //    0);
-    extends partialREFPROP;
-
   algorithm
-    assert(size(sat.X, 1) > 0, "The mass fraction vector must have at least 1 element.");
-    getProp_REFPROP(
-        "u",
-        "pq",
-        fluidnames,
-        ders,
-        trns,
-        props,
-        sat.psat,
-        0,
-        sat.X,
-        1,
-        errormsg);
-    assert(props[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
-
-    hl :=props[10];
-
+    hl := getProp_REFPROP_check(
+      "h",
+      "pq",
+      sat.psat,
+      0,
+      sat.X,
+      1);
   end bubbleEnthalpy;
 
   redeclare function extends bubbleEntropy "boiling curve specific entropy"
@@ -806,35 +714,14 @@ end ThermodynamicState;
 
   redeclare function extends bubbleDensity "boiling curve specific density"
     extends Modelica.Icons.Function;
-  //algorithm
-  //  dl := getProp_REFPROP_check(
-  //    "d",
-  //    "pq",
-  //    sat.psat,
-  //    0,
-  //    sat.X,
-  //    1);
-
-    extends partialREFPROP;
-
   algorithm
-    assert(size(sat.X, 1) > 0, "The mass fraction vector must have at least 1 element.");
-    getProp_REFPROP(
-        "u",
-        "pq",
-        fluidnames,
-        ders,
-        trns,
-        props,
-        sat.psat,
-        0,
-        sat.X,
-        1,
-        errormsg);
-    assert(props[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
-
-    dl :=props[5];
-
+    dl := getProp_REFPROP_check(
+      "d",
+      "pq",
+      sat.psat,
+      0,
+      sat.X,
+      1);
   end bubbleDensity;
 
   redeclare replaceable function extends molarMass

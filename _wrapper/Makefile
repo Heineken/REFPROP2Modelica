@@ -140,9 +140,12 @@ $(BINDIR)/$(LIBRARY)$(LIBRARYEXTENSION): $(SRCDIR)/$(LIBFILE).o
 .PHONY     : test
 test       : $(BINDIR)/$(THETEST)
 
-$(BINDIR)/$(THETEST) : #$(SRCDIR)/$(THETEST).o 
-	$(CPPC) $(DEBUGFLAGS) -o $(SRCDIR)/$(LIBFILE).o -c $(SRCDIR)/$(LIBFILE).cpp $(LIBS)
-	$(CPPC) $(DEBUGFLAGS) -o $(BINDIR)/$(THETEST) $(SRCDIR)/$(THETEST).cpp $(SRCDIR)/$(LIBFILE).o $(LIBS) 
+# $(BINDIR)/$(THETEST) : #$(SRCDIR)/$(THETEST).o 
+# 	$(CPPC) $(DEBUGFLAGS) -o $(SRCDIR)/$(LIBFILE).o -c $(SRCDIR)/$(LIBFILE).cpp $(LIBS)
+# 	$(CPPC) $(DEBUGFLAGS) -o $(BINDIR)/$(THETEST) $(SRCDIR)/$(THETEST).cpp $(SRCDIR)/$(LIBFILE).o $(LIBS) 
+
+$(BINDIR)/$(THETEST) : $(SRCDIR)/$(LIBFILE).o ./cpptest/cpp_wrapped.cpp
+	$(CPPC) $(DEBUGFLAGS) -o $(BINDIR)/$(THETEST) ./cpptest/cpp_wrapped.cpp $(SRCDIR)/$(LIBFILE).o $(LIBS)
 
 # .PHONY     : ian
 # ian        : $(BINDIR)/$(THETEST).ian

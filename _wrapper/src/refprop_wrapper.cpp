@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #if defined(__ISWINDOWS__)
@@ -608,13 +609,17 @@ std::string resolve_error(std::string in1, long lerr, char* errormsg) {
  * Load the library and handle all the
  * platform specific stuff.
  */
-double loadLibrary() {
+double loadLibrary(std::string sPath) {
 	if (RefpropdllInstance == NULL) { // Refprop is not loaded
 #if defined(__ISWINDOWS__)
 #if   defined(UNICODE)
-		RefpropdllInstance = LoadLibraryW((LPCWSTR)libName);
+		sPath.append((LPCWSTR)pathSep);
+		sPath.append((LPCWSTR)libName);
+		RefpropdllInstance = LoadLibraryW(sPath.c_str());
 #else
-		RefpropdllInstance = LoadLibrary((LPCSTR)libName);
+		sPath.append((LPCSTR)pathSep);
+		sPath.append((LPCSTR)libName);
+		RefpropdllInstance = LoadLibrary(sPath.c_str()); // this works in cpp tester, but not in Modelica..
 #endif
 #elif defined(__ISLINUX__)
 		RefpropdllInstance = dlopen(libName, RTLD_LAZY);
@@ -790,10 +795,13 @@ double setFunctionPointers() {
  * Make sure the library is loaded
  * properly and set pointers.
  */
-double initRefprop() {
+double initRefprop(std::string sPath) {
+
+	//std::string rPath = std::string(sPath);
+
 	if (RefpropdllInstance == NULL) {
 		if (debug) printf ("Library not loaded, trying to do so.\n");
-		if (loadLibrary() != OK) {
+		if (loadLibrary(sPath) != OK) {
 			printf("Refprop library %s cannot be loaded, make sure you ",libName);
 			printf("installed it properly.\n");
 			return FAIL;
@@ -827,7 +835,9 @@ double setFluids(std::string sPath, std::string sFluids, char* error){
 	// sPath:   "/opt/refprop" or "C:\Program Files\Refprop"
 	// sFluids: "pentane|butane" or "air"
 
-	if (initRefprop() != OK){
+	//std::string rPath = std::string(sPath);
+
+	if (initRefprop(sPath) != OK){
 		std::cerr << "ERROR: library not loaded.\n";
 		std::terminate();
 	}

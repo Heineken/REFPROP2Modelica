@@ -38,10 +38,10 @@ int main(int argc, char* argv[]){
 	x[1] = 1.0 - x[0];
 
 	double p  = 50.e5;
-    double h  = 3.0e5;
-	double dh = 2.5e6;
+    double h  = 20.0e5;
+	double dh = 0e6;
 
-	int N     = 500; // steps in enthalpy
+	int N     = 2; // steps in enthalpy
 	int M     =   1; // repetitions
 
 	double res  = 0.0;
@@ -49,8 +49,7 @@ int main(int argc, char* argv[]){
 
 	// Format the output properly
 	char buffer [100];
-	int limit    = 10;
-
+	int limit    = 100;
 
 	std::ostringstream out;
 	out << std::endl;
@@ -66,6 +65,8 @@ int main(int argc, char* argv[]){
 				sprintf (buffer, "d = %8.4f [kg/m3]",props[4]);
 				out << buffer << std::endl;
 				sprintf (buffer, "T = %8.4f [K]",props[2]);
+				out << buffer << std::endl;
+				sprintf (buffer, "Ders = %8.0f , %8.12f , %8.1f , %8.1f , %8.12f , %8.8f , %8.1f , %8.2f , %8.2f , %8.6f , %8.9f , %8.9f, %8.1f",ders[0],ders[1],ders[2],ders[3],ders[4],ders[5],ders[6],ders[7],ders[8],ders[9],ders[19],ders[20],ders[6]);
 				out << buffer << std::endl << std::endl;
 			}
 		}
@@ -73,7 +74,7 @@ int main(int argc, char* argv[]){
 	tend = time(0);
 
 	if (N*M<limit) {
-		//printf("%s", out.str().c_str());
+		printf("%s", out.str().c_str());
 	} else {
 		sprintf(buffer, "\nThere were %d calls to the wrapper.", N*M);
 		out << buffer << std::endl;
@@ -136,12 +137,12 @@ int main(int argc, char* argv[]){
 		for (int count = 0; count < N; count++) {
 			h_in = hmol + dhmol * count / (N - 1);
 			PHFLSHdll(pkpa,h_in,xmol,tt,dd,dl,dv,xliq,xvap,q,e,s,cv,cp,w,ierr,herr,errormessagelength);
-			if (N*M<limit) {
-				sprintf (buffer, "d = %8.4f [kg/m3]",dd*wm);
-				out << buffer << std::endl;
-				sprintf (buffer, "T = %8.4f [K]",tt);
-				out << buffer << std::endl << std::endl;
-			}
+		//	if (N*M<limit) {
+		//		sprintf (buffer, "d = %8.4f [kg/m3]",dd*wm);
+		//		out << buffer << std::endl;
+		//		sprintf (buffer, "T = %8.4f [K]",tt);
+		//		out << buffer << std::endl << std::endl;
+		//	}
 		}
 	}
 	tend = time(0);

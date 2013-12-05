@@ -127,10 +127,13 @@ int flushSaturation() {
  */
 double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
 	ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
-	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,
-	ddddp, dd2pdt2, dd2pdtd, ddhdt,	df, deta, dtcx, dstn;
+	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta;
 
-double ddhdt_d, ddhdt_p, ddhdd_t, ddhdd_p, ddhdp_t, ddhdp_d;
+double deta, dtcx;
+
+//double ddpdd, dd2pdd2, ddpdt, ddddt, ddddp, dd2pdt2, dd2pdtd, ddhdt;
+
+//double ddhdt_d, ddhdt_p, ddhdd_t, ddhdd_p, ddhdp_t, ddhdp_d;
 
 double ddddp_h, ddddh_p;
 
@@ -158,25 +161,25 @@ int flushProperties(){
 	dG=noValue;
 	dxkappa=noValue;
 	dbeta=noValue;
-	ddpdd=noValue;
-	dd2pdd2=noValue;
-	ddpdt=noValue;
-	ddddt=noValue;
-	ddddp=noValue;
-	dd2pdt2=noValue;
-	dd2pdtd=noValue;
-	ddhdt=noValue;
-	df=noValue;
+//	ddpdd=noValue;
+//	dd2pdd2=noValue;
+//	ddpdt=noValue;
+//	ddddt=noValue;
+//	ddddp=noValue;
+//	dd2pdt2=noValue;
+//	dd2pdtd=noValue;
+//	ddhdt=noValue;
+//	df=noValue; This is not used
 	deta=noValue;
 	dtcx=noValue;
-	dstn=noValue;
+//	dstn=noValue; This is not used
 
-	ddhdt_d=noValue;
-	ddhdt_p=noValue;
-	ddhdd_t=noValue;
-	ddhdd_p=noValue;
-	ddhdp_t=noValue;
-	ddhdp_d=noValue;
+//	ddhdt_d=noValue;
+//	ddhdt_p=noValue;
+//	ddhdd_t=noValue;
+//	ddhdd_p=noValue;
+//	ddhdp_t=noValue;
+//	ddhdp_d=noValue;
 
 	ddddp_h=noValue;
 	ddddh_p=noValue;
@@ -1015,6 +1018,7 @@ double getQ_modelica(){
 	}
 }
 
+
 double getCV_modelica(){
 	return dCv/dwm * 1000.0;
 }
@@ -1076,6 +1080,7 @@ double getXKAPPA_modelica() {	// isothermal compressibility (= -1/V dV/dP = 1/rh
 double getBETA_modelica() {	// volume expansivity (= 1/V dV/dT = -1/rho dD/dT) [1/K]
 	return dbeta;
 }
+/*
 double getDPDD_modelica() {	// derivative dP/drho [kPa-L/mol] * 1000Pa/kPa * mol/g = Pa.m3 / kg
 	return ddpdd * 1000. / dwm;
 }
@@ -1097,35 +1102,36 @@ double getD2PDT2_modelica() {	// derivative d2P/dT2 [kPa/K^2] * 1000Pa/kPa = Pa/
 double getD2PDTD_modelica() {	// derivative d2P/dTd(rho) [J/mol-K] / g/mol * 1000g/kg = J/kg.K
 	return  dd2pdtd/dwm*1000.;
 }
-
-
+*/
+/*
 double get_dhdt_d_modelica() { //dH/dT at constant density [J/(mol-K)] / g/mol * 1000g/kg = J/kg.K
-	return ddhdt_d/dwm*1000;
+	return noValue;//ddhdt_d/dwm*1000;
 }
 double get_dhdt_p_modelica() { //dH/dT at constant pressure [J/(mol-K)]
-	return ddhdt_p/dwm*1000;
+	return noValue;//ddhdt_p/dwm*1000;
 }
 double get_dhdd_t_modelica() { //dH/drho at constant temperature [(J/mol)/(mol/L)] * mol/g * 1000g/kg / g/mol = (J/kg) / (kg/m3)
-	return ddhdd_t /dwm*1000. / dwm;
+	return noValue;//ddhdd_t /dwm*1000. / dwm;
 }
 double get_dhdd_p_modelica() { //dH/drho at constant pressure [(J/mol)/(mol/L)]
-	return ddhdd_p /dwm*1000. / dwm;
+	return noValue;//ddhdd_p /dwm*1000. / dwm;
 }
 double get_dhdp_t_modelica() { //dH/dP at constant temperature [J/(mol-kPa)] /dwm*1000. / (1000Pa/kPa) = J/kg.Pa
-	return ddhdp_t / dwm;
+	return noValue;//ddhdp_t / dwm;
 }
 double get_dhdp_d_modelica() { //dH/dP at constant density [J/(mol-kPa)]
-	return ddhdp_d / dwm;
+	return noValue;//ddhdp_d / dwm;
 }
+*/
 
-// Numerical derivatives
+// Analytical derivatives
 // Derivative of density with respect to enthalpy at constant pressure
 double get_dddh_p_modelica(){
-	return ddddh_p*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
+	return ddddh_p*dwm*dwm/1000.; // [mol/l * mol/J] * g/mol * g/mol * 1e-3kg/g * 1e-3kg/g / 1e-3 m3/L =  kg/m3 * kg/J
 }
 // Derivative of density with respect to pressure at constant enthalpy
 double get_dddp_h_modelica(){
-	return ddddp_h*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
+	return ddddp_h*dwm/1000; // [mol/l * 1/kPa) * g/mol * 1e-3kg/g  / 1e-3 m3/L  / 1e-3 kPa/Pa = kg/(m3.Pa)
 }
 
 
@@ -1321,7 +1327,7 @@ double getValue(std::string out) {
 
 int updateDers(double *ders, long lerr){
 	//ASSIGN VALUES TO RETURN ARRAY
-	ders[0]  = lerr;//error code
+/*  ders[0]  = lerr;//error code
 	ders[1]  = getHJT_modelica(); 		// isenthalpic Joule-Thompson coefficient [K/Pa]
 	ders[2]  = getA_modelica();			// Helmholtz energy [J/kg]
 	ders[3]  = getG_modelica();			// Gibbs free energy [J/kg]
@@ -1342,6 +1348,29 @@ int updateDers(double *ders, long lerr){
 	ders[18] = get_dhdp_d_modelica();	// dH/dP at constant density [J/(kg-Pa)]
 	ders[19] = get_dddh_p_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
 	ders[20] = get_dddp_h_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
+*/
+	// TODO - I have reduced the variables thrown back.. Why us jtc, a, g derivatives here?
+	ders[0]  = lerr;//error code
+	ders[1]  = getHJT_modelica(); 		// isenthalpic Joule-Thompson coefficient [K/Pa]
+	ders[2]  = getA_modelica();			// Helmholtz energy [J/kg]
+	ders[3]  = getG_modelica();			// Gibbs free energy [J/kg]
+	ders[4]  = getXKAPPA_modelica();	// isothermal compressibility (= -1/V dV/dP = 1/rho dD/dP) [1/Pa]
+	ders[5]  = getBETA_modelica();		// volume expansivity (= 1/V dV/dT = -1/rho dD/dT) [1/K]
+	ders[6]  = 1;		// derivative dP/drho [Pa-m3/kg]
+	ders[7]  = 1;	// derivative d^2P/drho^2 [Pa-m6/kg2]
+	ders[8]  = 1;		// derivative dP/dT [Pa/K]
+	ders[9]  = 1;		// derivative drho/dT [kg/(m3-K)]
+	ders[10] = 1;		// derivative drho/dP [kg/(m3-kPa)]
+	ders[11] = 1;	// derivative d2P/dT2 [Pa/K2]
+	ders[12] = 1;	// derivative d2P/dTd(rho) [J/kg-K]
+	ders[13] = 1;	// dH/dT at constant density [J/(kg-K)]
+	ders[14] = 1;	// dH/dT at constant pressure [J/(kg-K)]
+	ders[15] = 1;	// dH/drho at constant temperature [(J/kg) / (kg/m3)]
+	ders[16] = 1;	// dH/drho at constant pressure [(J/kg) / (kg/m3)]
+	ders[17] = 1;	// dH/dP at constant temperature [J/(kg-Pa)]
+	ders[18] = 1;	// dH/dP at constant density [J/(kg-Pa)]
+	ders[19] = get_dddh_p_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
+	ders[20] = get_dddp_h_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
 	return 0;
 }
 
@@ -1350,69 +1379,88 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 	if (DEBUGMODE) debug = true;
 	long lerr = 0;
 
-	double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
-	double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
+	double spare3,spare4,spare5,spare6,spare7,spare8,spare9,spare10,spare2[ncmax],spare1[ncmax];
+	double spare11,spare12,spare13,spare14,spare15,spare16,spare17,spare19,spare18,spare20,spare21;
 
 	if ((dd!=noValue)&&(dt!=noValue)) {
-		// call explicit functions in d and T
-		// get derivatives from Refprop library
-		if (debug) printf("Calling THERM2 with T=%f and rho=%f.\n",dt,dd);
-		THERM2dll (dt,dd,dxmol,spare5,spare6,spare9,spare10,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
-
-		// get derivatives of enthalpy
-		if (debug) printf("Calling DHD1 with T=%f and rho=%f.\n",dt,dd);
-		DHD1dll(dt,dd,dxmol,ddhdt_d,ddhdt_p,ddhdd_t,ddhdd_p,ddhdp_t,ddhdp_d);
-
-		/*
-		 * With the above values, the cyclic relation can be used to
-		 * determine all necessary values.
-		 *
-		 * -1 = ddddp_ana * 1/(props.state.dhdp_rho) * props.state.dhdrho_p;
-		 * ddddh_ana * props.state.dhdrho_p= 1;
-		 *
-		 * Below is a numerical approximation due to problems in the
-		 * two-phase region.
-		 */
+		// THERM2dll(dt, dd, dxmol, spare5, spare6, spare9, spare10, dCv, dCp, dw,dZ, dhjt, dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,ddddp, dd2pdt2, dd2pdtd, spare3, spare4);
+		// we want to get props depending on quality below..
 
 		if (dqmol < 0. || dqmol > 1.) { // single-phase region
 			if (debug) printf ("Using single-phase derivatives.\n");
-			ddddp_h = -1. * ddhdp_d / ddhdd_p;
-			ddddh_p = 1./ddhdd_p;
-		} else { // two-phase region, get derivative of density with respect to enthalpy numerically
+
+			if (debug) printf("Calling THERM3 with T=%f and rho=%f.\n",dt,dd);
+			THERM3dll (dt,dd,dxmol,dxkappa,dbeta,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12);
+
+			ddddp_h = (-dt*dbeta*dbeta + dbeta + dxkappa*dd*dCp)/dCp;
+			ddddh_p = -dbeta*dd/dCp;
 			
+		} else { // two-phase region, get derivative of density
 
-			// TODO
-			ddddp_h = -1;
-			ddddh_p = -1;
-			/*
-			if (debug) printf ("Using two-phase derivatives.\n");
-			deltaP = 0.00005; // 0.05 Pascal difference
-			pLow   = dp - 0.5*deltaP;
-			pHigh  = dp + 0.5*deltaP;
-			rhoLow = 0;
-			rhoHigh = 0;
-			//PHFLSHdll(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
-			PHFLSHdll(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
-			PHFLSHdll(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Setting dddp_h_num from %f and %f.\n",rhoHigh,rhoLow);
-			ddddp_h = (rhoHigh-rhoLow) / (pHigh-pLow);
+			// These are not computed in two-phase!
+			dxkappa=noValue;
+			dbeta=noValue;
 
-			// get derivative of density with respect to enthalpy numerically
-			deltaH = 0.05; // 0.05 Joule total difference
-			hLow   = dh - 0.5*deltaH;
-			hHigh  = dh + 0.5*deltaH;
-			rhoLow = 0;
-			rhoHigh = 0;
-			//PHFLSHdll(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hLow);
-			PHFLSHdll(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hHigh);
-			PHFLSHdll(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
-			ddddh_p = (rhoHigh-rhoLow) / (hHigh-hLow);
+			/* j--phase flag: 1 = input x is liquid composition (bubble point)
+					    2 = input x is vapor composition (dew point)
+					    3 = input x is liquid composition (freezing point)
+					    4 = input x is vapor composition (sublimation point)
 			*/
+
+			//compute saturated vapor state
+			long kph2 = 2;
+			double dt_v,ddv_v,dCv_v,dCp_v,dwm_v,dxkappa_v,dbeta_v,h_v,s_v;
+			SATPdll(dp,dxmol,kph2,dt_v,spare3,ddv_v,spare2,spare1,lerr,errormsg,errormessagelength);
+			THERM2dll(dt_v, ddv_v, dxmol, spare3, spare4, h_v, s_v, dCv_v, dCp_v, dwm_v,spare2, spare10, spare11, spare12, dxkappa_v, dbeta_v, spare13, spare14, spare15, spare16,spare17, spare18, spare19, spare20, spare21);
+
+
+
+			//compute saturated liquid state
+			long kph1 = 1;
+			double dt_l,ddl_l,dCv_l,dCp_l,dwm_l,dxkappa_l,dbeta_l,h_l,s_l;
+			SATPdll(dp,dxmol,kph1,dt_l,ddl_l,spare3,spare2,spare1,lerr,errormsg,errormessagelength);
+			THERM2dll(dt_l, ddl_l, dxmol, spare3, spare4, h_l, s_l, dCv_l, dCp_l, dwm_l,spare2, spare10, spare11, spare12, dxkappa_l, dbeta_l, spare13, spare14, spare15, spare16,spare17, spare18, spare19, spare20, spare21);
+
+			// compute partials
+			double dvdh_p,dTdp_clasius, dhdpL,dhdpV,dvdpL,dvdpV,dxdp_h,dvdp_h;
+			// compute drhodh_p
+			dvdh_p = (1/ddv_v - 1/ddl_l)/(h_v-h_l);
+			ddddh_p = -dd*dd*dvdh_p;
+			// compute drhodp_h
+			dTdp_clasius =  (1/ddv_v - 1/ddl_l)/(s_v-s_l);
+			dhdpL = 1/ddl_l*(1-dbeta_l*dt_l)+dCp_l*dTdp_clasius;
+			dhdpV = 1/ddv_v*(1-dbeta_v*dt_v)+dCp_v*dTdp_clasius;
+			dvdpL = dbeta_l*1/ddl_l*dTdp_clasius-dxkappa_l*1/ddl_l;
+			dvdpV = dbeta_v*1/ddv_v*dTdp_clasius-dxkappa_v*1/ddv_v;
+
+			//TODO - Everything so far is refprop units, but for some reason the quality below must be on mass basic?
+			double dqmoltmp;
+			dqmoltmp = dqmol*dwvap/dwm;
+			dxdp_h = (dhdpL + dqmoltmp * (dhdpV-dhdpL))/(h_l-h_v);
+			dvdp_h = dvdpL+dxdp_h*(1/ddv_v-1/ddl_l)+dqmoltmp*(dvdpV-dvdpL);
+			ddddp_h = -dd*dd*dvdp_h;
+
+
+			/*
+			printf("dqmol %f\n", dqmol);
+			if (dwvap==noValue)
+			{
+				printf("dwm %f\n", dwm);
+				printf("dwvap %f\n", dwvap);
+				WMOLdll(dxmolv,dwvap);
+				dqmol = dqmol*dwvap/dwm;
+				printf("first dqmol %f\n", dqmol);
+
+			} else {
+				printf("dwm %f\n", dwm);
+				printf("dwvap %f\n", dwvap);
+				dqmol = dqmol*dwvap/dwm;
+				printf("second dqmol %f\n", dqmol);
+			}
+
+			printf("dqmol %f\n", dqmol);
+			 */
+
 		}
 
 	} else { // We have a problem!
@@ -1926,10 +1974,10 @@ OUTPUT
 
 
 	// TODO
-	/*
+
 	int outVal = ders_REFPROP(ders,errormsg,debug);
 	if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
-
+	/*
 	outVal = trns_REFPROP(trns,errormsg,debug);
 	if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
 	*/

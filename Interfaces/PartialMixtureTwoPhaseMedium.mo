@@ -522,6 +522,23 @@ Functions to obtain fluid properties from the currently active state.
     annotation(Documentation(info="<html></html>"));
   end density_pTX;
 
+replaceable function pressure_dTX "Return pressure from d, T, and X or Xi"
+  extends Modelica.Icons.Function;
+  input Density d "Density";
+  input Temperature T "Temperature";
+  input MassFraction X[nX] "Mass fractions";
+  input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
+  output AbsolutePressure p "Pressure";
+algorithm
+    p := pressure(
+      setState_dTX(
+      d,
+      T,
+      X,
+      phase));
+annotation(Documentation(info="<html></html>"));
+end pressure_dTX;
+
 replaceable function specificEnthalpy_dTX
     "Return specific enthalpy from d, T, and X or Xi"
   extends Modelica.Icons.Function;
@@ -578,6 +595,24 @@ end specificEnthalpy_dTX;
     annotation(Documentation(info="<html></html>"));
   end specificEnthalpy_pTX;
 
+replaceable function specificEntropy_dTX
+    "Return specific entropy from d, T, and X or Xi"
+  extends Modelica.Icons.Function;
+  input Density d "Density";
+  input Temperature T "Temperature";
+  input MassFraction X[nX] "Mass fractions";
+  input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
+  output SpecificEntropy s "specific enthalpy";
+algorithm
+    s := specificEntropy(
+      setState_dTX(
+      d,
+      T,
+      X,
+      phase));
+annotation(Documentation(info="<html></html>"));
+end specificEntropy_dTX;
+
 replaceable function specificEntropy_phX
     "Return specific entropy from p, h, and X or Xi"
   extends Modelica.Icons.Function;
@@ -595,6 +630,24 @@ algorithm
       phase));
 annotation(Documentation(info="<html></html>"));
 end specificEntropy_phX;
+
+replaceable function specificEntropy_pTX
+    "Return specific entropy from p, T, and X or Xi"
+  extends Modelica.Icons.Function;
+  input AbsolutePressure p "Pressure";
+  input Temperature T "Temperature";
+  input MassFraction X[nX] "Mass fractions";
+  input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
+  output SpecificEntropy s "specific enthalpy";
+algorithm
+    s := specificEntropy(
+      setState_pTX(
+      p,
+      T,
+      X,
+      phase));
+annotation(Documentation(info="<html></html>"));
+end specificEntropy_pTX;
 
   redeclare replaceable function temperature_phX
     "Return temperature from p, h, and X or Xi"
@@ -614,6 +667,7 @@ end specificEntropy_phX;
         phase));
     annotation(Documentation(info="<html></html>"));
   end temperature_phX;
+
 
   redeclare replaceable function temperature_psX
     "Return temperature from p, s, and X or Xi"

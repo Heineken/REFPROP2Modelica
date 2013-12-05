@@ -22,6 +22,6 @@ Modelica.SIunits.Pressure p(min=10,max=10e6)=Medium.pressure(props.state);
 equation
     props.p = 1e5;
     props.h = 0+time*8e5;
-    props.Xi = {.5};
+    props.Xi = {0.5};
 
 end PropsMixtureTwo;

@@ -612,7 +612,7 @@ double loadLibrary(std::string sPath) {
 #else
 		sPath.append((LPCSTR)pathSep);
 		sPath.append((LPCSTR)libName);
-		RefpropdllInstance = LoadLibrary(sPath.c_str()); // this works in cpp tester, but not in Modelica..
+		RefpropdllInstance = LoadLibrary(sPath.c_str());
 #endif
 #elif defined(__ISLINUX__)
 		RefpropdllInstance = dlopen(libName, RTLD_LAZY);

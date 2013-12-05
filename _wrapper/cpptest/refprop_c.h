@@ -16,11 +16,13 @@
 #endif
 
 #if defined(__ISWINDOWS__)
+HINSTANCE RefpropdllInstance;
 // For C calling conventions, replaced all "double &" with "double *", and "long &" with "long *"
 typedef void (__stdcall *fp_PHFLSHdllTYPE)(double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,long *,char*,long );
 typedef void (__stdcall *fp_SETUPdllTYPE)(long *,char*,char*,char*,long *,char*,long ,long ,long ,long );
 typedef void (__stdcall *fp_XMOLEdllTYPE)(double *,double *,double *);
 #elif defined(__ISLINUX__)
+void *RefpropdllInstance;
 // For C calling conventions, replaced all "double &" with "double *", and "long &" with "long *"
 typedef void ( *fp_PHFLSHdllTYPE)(double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,double *,long *,char*,long );
 typedef void ( *fp_SETUPdllTYPE)(long *,char*,char*,char*,long *,char*,long ,long ,long ,long );

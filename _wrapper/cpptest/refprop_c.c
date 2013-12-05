@@ -78,17 +78,15 @@ int main(int argc, char* argv[])
 
 
 #if defined(__ISWINDOWS__)
-	HINSTANCE RefpropdllInstance;
 	RefpropdllInstance = LoadLibrary("C:\\Program Files (x86)\\REFPROP\\refprop.dll");
 	PHFLSHdll = (fp_PHFLSHdllTYPE) GetProcAddress(RefpropdllInstance,"PHFLSHdll");
-	SETUPdll = (fp_SETUPdllTYPE) GetProcAddress(RefpropdllInstance,"SETUPdll");
-	XMOLEdll = (fp_XMOLEdllTYPE) GetProcAddress(RefpropdllInstance,"XMOLEdll");
+	SETUPdll  = (fp_SETUPdllTYPE)  GetProcAddress(RefpropdllInstance,"SETUPdll");
+	XMOLEdll  = (fp_XMOLEdllTYPE)  GetProcAddress(RefpropdllInstance,"XMOLEdll");
 #elif defined(__ISLINUX__)
-	void *RefpropdllInstance = NULL;
 	RefpropdllInstance = dlopen("librefprop.so", RTLD_LAZY);
-    PHFLSHdll = (fp_PHFLSHdllTYPE) dlsym(RefpropdllInstance, "PHFLSHdll");
-    SETUPdll = (fp_SETUPdllTYPE) dlsym(RefpropdllInstance, "SETUPdll");
-	XMOLEdll = (fp_XMOLEdllTYPE) dlsym(RefpropdllInstance, "XMOLEdll");
+	PHFLSHdll = (fp_PHFLSHdllTYPE) dlsym(RefpropdllInstance, "PHFLSHdll");
+	SETUPdll  = (fp_SETUPdllTYPE)  dlsym(RefpropdllInstance, "SETUPdll");
+	XMOLEdll  = (fp_XMOLEdllTYPE)  dlsym(RefpropdllInstance, "XMOLEdll");
 #endif
 
 
@@ -111,7 +109,7 @@ int main(int argc, char* argv[])
 		FLD_PATH = "C:\\Program Files (x86)\\REFPROP\\fluids";
 		char theSepChar[2]    = "\\";
 #	elif defined(__ISLINUX__)
-		FLD_PATH = "/opt/refprop";
+		FLD_PATH = "/opt/refprop/fluids";
 		char theSepChar[2]    = "/";
 #	endif
 //	  strcpy(hf,FLD_PATH);

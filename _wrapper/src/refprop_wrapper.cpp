@@ -2303,7 +2303,7 @@ OUTPUT
 //---------------------------------------------------------------------------
 
 
-double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *satprops, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport){
+double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *satprops, double statevarval, double Tsurft, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport){
 /*Calculates thermodynamic saturation properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
 INPUT:
 	what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -2324,7 +2324,6 @@ OUTPUT
 
 //    DEBUGMODE = 1;
 	if (DEBUGMODE) debug = true;
-	if (calcTransport) calcTrans=true;
 
 	std::string out 	= std::string(what).substr(0,1);
 	std::string in1 	= std::string(statevar_in).substr(0,1);
@@ -2539,7 +2538,20 @@ OUTPUT
 	}
 
 
-	double dsigma=0; //TODO get surface tension.. using flag and so on..
+
+
+	double dsigma;
+
+ 	if (calcTransport) {
+ 		if ( strCompare(in1, "t") ) {
+ 			SURTENdll (dtsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,dsigma,lerr,errormsg,errormessagelength);
+ 		} else if ( strCompare(in1, "p") ) {
+ 			SURFTdll (Tsurft,ddlsat,dxmollsat,dsigma,lerr,errormsg,errormessagelength);
+ 		}
+	} else {
+		dsigma =0;
+	}
+
 
 	double dxlkg[ncmax], dxvkg[ncmax];
 	XMASSdll(dxmollsat,dxlkg,dwlsat);

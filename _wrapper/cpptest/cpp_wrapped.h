@@ -56,10 +56,10 @@ typedef void (CALLCONV *TDFLSHdll_POINTER)(double &,double &,double *,double &,d
 //WMOLdll_POINTER WMOLdll;
 //PHFLSHdll_POINTER  PHFLSHdll;
 
-SETUPdll_POINTER SETUPdll;
-WMOLdll_POINTER WMOLdll;
-XMOLEdll_POINTER XMOLEdll;
-PHFLSHdll_POINTER  PHFLSHdll;
-TDFLSHdll_POINTER  TDFLSHdll;
+extern SETUPdll_POINTER SETUPdll;
+extern WMOLdll_POINTER WMOLdll;
+extern XMOLEdll_POINTER XMOLEdll;
+extern PHFLSHdll_POINTER  PHFLSHdll;
+extern TDFLSHdll_POINTER  TDFLSHdll;
 
 #endif

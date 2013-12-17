@@ -48,9 +48,9 @@ int main(int argc, char* argv[]){
 
 	double p  = 50.e5;
     double h  = 3.0e5;
-	double dh = 2.5e6;
+	double dh = 0;//2.5e6;
 
-	int N     = 500; // steps in enthalpy
+	int N     = 2; // steps in enthalpy
 	int M     =   1; // repetitions
 
 	double res  = 0.0;
@@ -78,21 +78,21 @@ int main(int argc, char* argv[]){
 				sprintf (buffer, "T = %8.4f [K]",props[2]);
 				out << buffer << std::endl;
 
-	/*		res = satprops_REFPROP((char*)"p", (char*)"t", fluidname, satprops, props[2], x, thepathChar, errormsg, DEBUG, transport);
+			res = satprops_REFPROP((char*)"p", (char*)"t", fluidname, satprops, props[2], 0,  x, thepathChar, errormsg, DEBUG, transport);
 
 				sprintf (buffer, "Pl(T) = %8.4f [Pa]",satprops[3]);
 				out << buffer << std::endl;
 				sprintf (buffer, "Pv(T) = %8.4f [Pa]",satprops[4]);
 				out << buffer << std::endl;
 
-				res = satprops_REFPROP((char*)"t", (char*)"p", fluidname, satprops, p, x, thepathChar, errormsg, DEBUG, transport);
+				res = satprops_REFPROP((char*)"t", (char*)"p", fluidname, satprops, p, 0,  x, thepathChar, errormsg, DEBUG, transport);
 
 				sprintf (buffer, "Tl(p) = %8.4f [K]",satprops[1]);
 				out << buffer << std::endl;
 				sprintf (buffer, "Tv(p) = %8.4f [K]",satprops[2]);
 				out << buffer << std::endl;
 
-		*/
+
 				sprintf (buffer, "Ders = %8.0f , %8.12f , %8.1f , %8.1f , %8.12f , %8.8f , %8.1f , %8.2f , %8.2f , %8.9f , %8.9f , %8.9f, %8.1f",ders[0],ders[1],ders[2],ders[3],ders[4],ders[5],ders[6],ders[7],ders[8],ders[18],ders[19],ders[20],ders[6]);
 				out << buffer << std::endl << std::endl;
 			}

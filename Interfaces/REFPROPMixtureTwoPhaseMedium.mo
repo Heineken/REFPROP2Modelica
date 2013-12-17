@@ -147,6 +147,8 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String fluidnames;
     input Real[:] satprops;
     input Real statevarval;
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     input String errormsg;
     output Real val;
@@ -157,6 +159,7 @@ partial package REFPROPMixtureTwoPhaseMedium
         fluidnames,
         satprops,
         statevarval,
+        Tsurft,
         X,
         REFPROP_PATH,
         errormsg,
@@ -172,6 +175,8 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String statevar;
   //   input String fluidnames;
     input Real statevarval;
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     output Real val;
   algorithm
@@ -182,6 +187,7 @@ partial package REFPROPMixtureTwoPhaseMedium
         fluidnames,
         satprops,
         statevarval,
+        Tsurft,
         X,
         errormsg) "just passing through";
   //Error string decoding in wrapper-c-function
@@ -688,6 +694,8 @@ end ThermodynamicState;
     input String statevar;
     input Real statevarval;
     input Modelica.SIunits.MassFraction X[:] "Mass fractions";
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
     output SaturationProperties sat "saturation property record";
   algorithm
     assert(size(X, 1) > 0, "The mass fraction vector must have at least 1 element.");
@@ -697,6 +705,7 @@ end ThermodynamicState;
         fluidnames,
         satprops,
         statevarval,
+        Tsurft,
         X,
         errormsg);
     assert(satprops[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
@@ -721,12 +730,15 @@ end ThermodynamicState;
     extends Modelica.Icons.Function;
     input AbsolutePressure p "pressure";
     input MassFraction X[nX] "Mass fractions";
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
     output SaturationProperties sat "saturation property record";
   algorithm
       sat := setSat(
         "p",
         p,
-        X);
+        X,
+        Tsurft);
   end setSat_pX;
 
   redeclare replaceable function setSat_TX

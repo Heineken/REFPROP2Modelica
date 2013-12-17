@@ -8,3 +8,7 @@ cl /c /Ox /fp:fast /MD /EHsc refprop_wrapper.cpp
 
 lib refprop_wrapper.obj
 erase *.obj
+
+copy refprop_wrapper.lib "C:\Program Files (x86)\Dymola 2013\bin\lib\"
+copy refprop_wrapper.h "C:\Program Files (x86)\Dymola 2013\Source\"
+copy refprop_library.h "C:\Program Files (x86)\Dymola 2013\Source\"

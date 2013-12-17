@@ -16,7 +16,7 @@ equation
   p=50e5;
   X={0.5,0.5};
 
-  sat = Medium.setSat_pX(p,X);
+  sat = Medium.setSat_pX(p,X,450);
   sat2 = Medium.setSat_TX(450,X);
 
   dewstate = Medium.setDewState(sat);

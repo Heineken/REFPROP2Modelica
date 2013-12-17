@@ -130,6 +130,9 @@
 #  define WMOLdll WMOLdll
 #  define XMASSdll XMASSdll
 #  define XMOLEdll XMOLEdll
+
+
+
 #elif defined(__ISLINUX__) // defined(__ISWINDOWS__)
 // Define compiler specific calling conventions
 // for the shared library.
@@ -781,6 +784,8 @@ extern "C" {
   typedef WMOLdll_TYPE * WMOLdll_POINTER;
   typedef XMASSdll_TYPE * XMASSdll_POINTER;
   typedef XMOLEdll_TYPE * XMOLEdll_POINTER;
+
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif // __cplusplus

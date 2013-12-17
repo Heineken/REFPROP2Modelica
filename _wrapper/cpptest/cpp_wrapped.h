@@ -37,26 +37,29 @@
 # 	define WMOLdll WMOLdll
 #	define XMOLEdll XMOLEdll
 # 	define PHFLSHdll PHFLSHdll
+# 	define TDFLSHdll TDFLSHdll
 #elif defined(__ISLINUX__)
 #	define CALLCONV
 #	define SETUPdll setupdll_
 #	define WMOLdll wmoldll_
 #	define XMOLEdll xmoledll_
 #	define PHFLSHdll phflshdll_
+# 	define TDFLSHdll tdflshdll_
 #endif
 
 typedef void (CALLCONV *SETUPdll_POINTER)(long &,char*,char*,char*,long &,char*,long ,long ,long ,long );
 typedef void (CALLCONV *WMOLdll_POINTER)(double *,double &);
 typedef void (CALLCONV *XMOLEdll_POINTER)(double *,double *,double &);
 typedef void (CALLCONV *PHFLSHdll_POINTER)(double &,double &,double *,double &,double &,double &,double &,double *,double *,double &,double &,double &,double &,double &,double &,long &,char*,long );
-
+typedef void (CALLCONV *TDFLSHdll_POINTER)(double &,double &,double *,double &,double &,double &,double *,double *,double &,double &,double &,double &,double &,double &,double &,long &,char*,long );
 //SETUPdll_POINTER SETUPdll;
 //WMOLdll_POINTER WMOLdll;
 //PHFLSHdll_POINTER  PHFLSHdll;
 
-extern SETUPdll_POINTER SETUPdll;
-extern WMOLdll_POINTER WMOLdll;
-extern XMOLEdll_POINTER XMOLEdll;
-extern PHFLSHdll_POINTER  PHFLSHdll;
+SETUPdll_POINTER SETUPdll;
+WMOLdll_POINTER WMOLdll;
+XMOLEdll_POINTER XMOLEdll;
+PHFLSHdll_POINTER  PHFLSHdll;
+TDFLSHdll_POINTER  TDFLSHdll;
 
 #endif

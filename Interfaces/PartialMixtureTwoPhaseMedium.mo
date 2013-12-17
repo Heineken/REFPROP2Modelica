@@ -74,30 +74,34 @@ redeclare replaceable record extends ThermodynamicState
     //AbsolutePressure p "pressure";
     SpecificEntropy s "specific entropy";
     //MassFraction X[nX] "Mass fraction of components in kg/kg";
+    MassFraction q "vapor quality";
     annotation(Documentation(info="<html></html>"));
 end ThermodynamicState;
 
   replaceable record SaturationProperties
     "Saturation properties of two phase medium"
     extends Modelica.Icons.Record;
-    Temperature Tsat(min=1e-8) "saturation temperature";
+    Temperature Tl(min=1e-8) "saturation temperature at bubble line";
+    Temperature Tv(min=1e-8) "saturation temperature at dew line";
+    AbsolutePressure pl(min=1e-8) "saturation pressure at bubble line";
+    AbsolutePressure pv(min=1e-8) "saturation pressure at dew line";
   //   Real dTp "derivative of Ts wrt pressure";
   //   DerDensityByPressure ddldp "derivative of dls wrt pressure";
   //   DerDensityByPressure ddvdp "derivative of dvs wrt pressure";
   //   DerEnthalpyByPressure dhldp "derivative of hls wrt pressure";
   //   DerEnthalpyByPressure dhvdp "derivative of hvs wrt pressure";
-  //   Density dl "density at bubble line (for pressure ps)";
-  //   Density dv "density at dew line (for pressure ps)";
-  //   SpecificEnthalpy hl "specific enthalpy at bubble line (for pressure ps)";
-  //   SpecificEnthalpy hv "specific enthalpy at dew line (for pressure ps)";
-    AbsolutePressure psat(min=1e-8) "saturation pressure";
-  //   SurfaceTension sigma "surface tension";
-  //   SpecificEntropy sl "specific entropy at bubble line (for pressure ps)";
-  //   SpecificEntropy sv "specific entropy at dew line (for pressure ps)";
-    MassFraction X[nX] "Bulk mass fractions";
+     Density dl "density at bubble line (for pressure ps)";
+     Density dv "density at dew line (for pressure ps)";
+     SpecificEnthalpy hl "specific enthalpy at bubble line (for pressure ps)";
+     SpecificEnthalpy hv "specific enthalpy at dew line (for pressure ps)";
+     SpecificEntropy sl "specific entropy at bubble line (for pressure ps)";
+     SpecificEntropy sv "specific entropy at dew line (for pressure ps)";
+     SurfaceTension sigma "surface tension";
+     MassFraction X[nX] "Bulk mass fractions";
+  //   MolarMass MMl "molar mass bubble line (for pressure ps)";
+  //   MolarMass MMv "molar mass at dew line (for pressure ps)";
   //   MassFraction Xl[nX] "Mass fractions of liquid phase";
   //   MassFraction Xv[nX] "Mass fractions of gaseous phase";
-  //   annotation(Documentation(info="<html></html>"));
   end SaturationProperties;
 
 redeclare replaceable model extends BaseProperties(
@@ -890,17 +894,18 @@ end temperature;
 
   replaceable function vapourQuality "Return vapour quality"
     input ThermodynamicState state "Thermodynamic state record";
-    output MassFraction x "Vapour quality";
+    output MassFraction q "Vapour quality";
   protected
     constant SpecificEnthalpy eps = 1e-8;
   algorithm
-    x := min(max((specificEnthalpy(state) - bubbleEnthalpy(
-      setSat_pX(
-      pressure(state), state.X)))/(dewEnthalpy(
-      setSat_pX(
-      pressure(state), state.X)) - bubbleEnthalpy(
-      setSat_pX(
-      pressure(state), state.X)) + eps), 0), 1);
+  //   x := min(max((specificEnthalpy(state) - bubbleEnthalpy(
+  //     setSat_pX(
+  //     pressure(state), state.X)))/(dewEnthalpy(
+  //     setSat_pX(
+  //     pressure(state), state.X)) - bubbleEnthalpy(
+  //     setSat_pX(
+  //     pressure(state), state.X)) + eps), 0), 1);
+    q := state.q;
     annotation(Documentation(info="<html></html>"));
   end vapourQuality;
 

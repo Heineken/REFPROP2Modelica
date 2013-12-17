@@ -9,7 +9,8 @@ Modelica.SIunits.Pressure p(min=10,max=10e6)=Medium.pressure(props.state);
   Modelica.SIunits.SpecificHeatCapacity cv=Medium.specificHeatCapacityCv(props.state);
   Medium.ThermodynamicState state=Medium.setState_phX(props.p,props.h,props.X);
 
-  Medium.SaturationProperties sat = Medium.setSat_pX(props.p,props.X);
+  Medium.SaturationProperties sat = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.setSat(
+                                                     props.p,props.X);
   Medium.SpecificEnthalpy hl = Medium.bubbleEnthalpy(sat);
   Medium.SpecificEnthalpy hv = Medium.dewEnthalpy(sat);
   Medium.Density dl = Medium.bubbleDensity(sat);

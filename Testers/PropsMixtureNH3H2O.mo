@@ -13,7 +13,8 @@ package Medium = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium (
   Modelica.SIunits.AbsolutePressure p;
   Real q;
 
-  Medium.SaturationProperties sat = Medium.setSat_pX(p,X);
+  Medium.SaturationProperties sat = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.setSat(
+                                                     p,X);
 
   Medium.SpecificEnthalpy hl = Medium.bubbleEnthalpy(sat);
   Medium.SpecificEnthalpy hv = Medium.dewEnthalpy(sat);

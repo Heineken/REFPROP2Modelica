@@ -131,7 +131,10 @@
 #  define XMASSdll XMASSdll
 #  define XMOLEdll XMOLEdll
 
-
+# 	define RMIX2dll RMIX2dll
+# 	define RDXHMXdll RDXHMXdll
+# 	define PHIXdll PHIXdll
+#   define PHI0dll PHI0dll
 
 #elif defined(__ISLINUX__) // defined(__ISWINDOWS__)
 // Define compiler specific calling conventions
@@ -247,6 +250,12 @@
 #  define WMOLdll wmoldll_
 #  define XMASSdll xmassdll_
 #  define XMOLEdll xmoledll_
+
+# 	define RMIX2dll rmix2dll_
+# 	define RDXHMXdll rdxhmxdll_
+# 	define PHIXdll phixdll_
+#   define PHI0dll phi0dll_
+
 #else // #elif defined(__ISLINUX__)
 // Set some dummy names for the compiler
 #  define CALLCONV
@@ -351,6 +360,12 @@
 #  define WMOLdll wmoldll
 #  define XMASSdll xmassdll
 #  define XMOLEdll xmoledll
+
+# 	define RMIX2dll rmix2dll
+# 	define RDXHMXdll rdxhmxdll
+# 	define PHIXdll phixdll
+#   define PHI0dll phi0dll
+
 #endif // else branch
 //
 //
@@ -467,6 +482,12 @@
 #define WMOLdll_NAME FUNCTION_NAME(WMOLdll)
 #define XMASSdll_NAME FUNCTION_NAME(XMASSdll)
 #define XMOLEdll_NAME FUNCTION_NAME(XMOLEdll)
+
+#define RMIX2dll_NAME FUNCTION_NAME(RMIX2dll)
+#define RDXHMXdll_NAME FUNCTION_NAME(RDXHMXdll)
+#define PHIXdll_NAME FUNCTION_NAME(PHIXdll)
+#define PHI0dll_NAME FUNCTION_NAME(PHI0dll)
+
 //
 // I'll try to follow this example from:
 // http://www.gershnik.com/tips/cpp.asp
@@ -578,7 +599,15 @@ extern "C" {
   typedef void (CALLCONV WMOLdll_TYPE)(double *,double &);
   typedef void (CALLCONV XMASSdll_TYPE)(double *,double *,double &);
   typedef void (CALLCONV XMOLEdll_TYPE)(double *,double *,double &);
-//
+
+  typedef void (CALLCONV RMIX2dll_TYPE)(double *,double &);
+  typedef void (CALLCONV RDXHMXdll_TYPE)(long *,long *,long *,double *,double &,double &,long &,char*,long );
+  typedef void (CALLCONV PHIXdll_TYPE)(long *,long *,double &,double &,double *,double &);
+  typedef void (CALLCONV PHI0dll_TYPE)(long *,long *,double &,double &,double *,double &);
+
+
+
+  //
 // Disabled because we prefer pointers here!
 //  // Declare the functions for direct access,
 //  RPVersion_TYPE RPVersion;
@@ -784,6 +813,12 @@ extern "C" {
   typedef WMOLdll_TYPE * WMOLdll_POINTER;
   typedef XMASSdll_TYPE * XMASSdll_POINTER;
   typedef XMOLEdll_TYPE * XMOLEdll_POINTER;
+
+  typedef RMIX2dll_TYPE * RMIX2dll_POINTER;
+  typedef RDXHMXdll_TYPE * RDXHMXdll_POINTER;
+  typedef PHIXdll_TYPE * PHIXdll_POINTER;
+  typedef PHI0dll_TYPE * PHI0dll_POINTER;
+
 
 
 #if defined(__cplusplus)

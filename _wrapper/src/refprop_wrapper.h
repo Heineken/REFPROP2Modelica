@@ -42,7 +42,7 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif // __cplusplus
-	EXPCONV double props_REFPROP(char* what, char* statevars, char* fluidnames, double *ders, double *trns, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport, int calcTwoPhaseNumericalDerivatives, int calcTwoPhasePsuedoAnalyticalDerivatives); //declaration;
+	EXPCONV double props_REFPROP(char* what, char* statevars, char* fluidnames, double *ders, double *trns, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport, int partialDersInputChoice); //declaration;
 	EXPCONV double satprops_REFPROP(char* what, char* statevar, char* fluidnames, double *satprops, double statevarval, double Tsurft, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE,int calcTransport); //declaration;
 #if defined(__cplusplus)
 }

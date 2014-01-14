@@ -15,10 +15,9 @@ int main(int argc, char* argv[]){
 	double *props;
 	double *ders;
 	double *trns;
-	int DEBUG = 0;
+	int DEBUG = 1;
 	int transport = 0;
-	int twophaseNumerical = 0;
-	int twophaseAnalytical = 1;
+	int partialDersInputChoice= 3;
 
 	double *satprops;
 
@@ -36,8 +35,8 @@ int main(int argc, char* argv[]){
 
 	// Allocate space for objects
 	x     = (double*) calloc(nX,sizeof(double));
-	props = (double*) calloc(16+2*nX,sizeof(double));
-	ders  = (double*) calloc(9,sizeof(double));
+	props = (double*) calloc(18+2*nX,sizeof(double));
+	ders  = (double*) calloc(12,sizeof(double));
 	trns  = (double*) calloc(3,sizeof(double));
 
 	satprops = (double*) calloc(12+nX,sizeof(double));
@@ -48,7 +47,7 @@ int main(int argc, char* argv[]){
 
 	double p  = 50.e5;
     double h  = 3.0e5;
-	double dh = 0;//2.5e6;
+	double dh = 1500e3;//2.5e6;
 
 	int N     = 2; // steps in enthalpy
 	int M     =   1; // repetitions
@@ -70,7 +69,7 @@ int main(int argc, char* argv[]){
 		for (int count = 0; count < N; count++) {
 			h_in = h + dh * count / (N - 1);
 
-			res = props_REFPROP((char*)"u", (char*)"ph", fluidname, ders, trns, props, p, h_in, x, 0, thepathChar, errormsg, DEBUG, transport, twophaseNumerical, twophaseAnalytical);
+			res = props_REFPROP((char*)"u", (char*)"ph", fluidname, ders, trns, props, p, h_in, x, 0, thepathChar, errormsg, DEBUG, transport, partialDersInputChoice);
 
 			if (N*M<limit) {
 				sprintf (buffer, "d = %8.4f [kg/m3]",props[4]);

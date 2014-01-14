@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sstream>
-#include "refprop_wrapper.h"
-#include "refprop_library.h"
+#include "../src/refprop_library.h"
+#include "../src/refprop_wrapper.h"
 #include <math.h>
 #include <ctime>
 
@@ -26,7 +26,8 @@ int main(int argc, char* argv[]){
 	int i;
 //	int nX = argc-5;
 	int DEBUG = 0;
-
+	int transport = 0;
+	int partialDersInputChoice= 3;
 	
 	
 /*	
@@ -82,29 +83,42 @@ x[1] = 1.0-x[0];
 */
 
 //	double p;
-    double h;
-	double dh;
-	int N=500;
+//    double h;
+//	double dh;
+//	int N=500;
+//
+//	double* T_save;
+//	double* h_in;
+//	T_save = (double*) calloc(N,sizeof(double));
+//	h_in = (double*) calloc(N,sizeof(double));
 
-	double* T_save;
-	double* h_in;
-	T_save = (double*) calloc(N,sizeof(double));
-	h_in = (double*) calloc(N,sizeof(double));
+//p=50e5;
+//h=3e5;
+//dh=25e5;
 
-p=50e5;
-h=3e5;
-dh=25e5;
 
-//std::string thepath = std::string("c:\\Program Files (x86)\\Refprop");
-std::string thepath = std::string("/opt/refprop");
+std::string thepath = std::string("c:\\Program Files (x86)\\Refprop\\");
+//std::string thepath = std::string("/opt/refprop");
 
 char thepathChar[255];
-
 strcpy(thepathChar,thepath.c_str());
 
-props_REFPROP  ("", "ph", "ammoniaL|water"           , ders, trns, props, p, h, x, 0, thepathChar    , errormsg, DEBUG);
+//props_REFPROP  ("", "ph", "ammoniaL|water"           , ders, trns, props, p, h, x, 0, thepathChar    , errormsg, DEBUG, transport, partialDersInputChoice);
 
-	//printf("q=%f [kg/kg]\n",props[7]);
+x[0] = 0.3479106451; //mass gives 0.5 mole
+x[1] = 0.6520893549; //mass
+
+t = 250;
+d = 15*23.0559200000; // mol/L * g/mol = kg/m3
+
+props_REFPROP  ("", "td", "methane|ethane"           , ders, trns, props, t, d, x, 0, thepathChar    , errormsg, DEBUG, transport, partialDersInputChoice);
+
+printf("q=%f [kg/kg]\n",props[7]);
+printf("p=%f [Pa]\n",props[1]);
+
+
+
+/*
 
 //Then at the beginning:
  time_t tstart, tend; 
@@ -114,7 +128,7 @@ props_REFPROP  ("", "ph", "ammoniaL|water"           , ders, trns, props, p, h, 
 	for (count = 0; count < N; count++)
 	{
 		h_in[count] = h+dh*count/(N-1);
-		props_REFPROP  ("u", "ph", "ammoniaL|water"           , ders, trns, props, p, h_in[count], x, 0, thepathChar     , errormsg, DEBUG);
+		props_REFPROP  ("u", "ph", "ammoniaL|water"           , ders, trns, props, p, h_in[count], x, 0, thepathChar     , errormsg, DEBUG, transport, partialDersInputChoice);
 		T_save[count] = props[2];
 
 	//printf("T=%f [K]\n",props[2]);
@@ -125,6 +139,7 @@ props_REFPROP  ("", "ph", "ammoniaL|water"           , ders, trns, props, p, h, 
  std::ostringstream myString1;
  myString1 << "It took "<< difftime(tend, tstart) <<" second(s)."<< std::endl;
 printf("%s",myString1.str().c_str());
+
 
 	std::ostringstream s;
 	for (count = 0; count < N; count++)
@@ -144,7 +159,7 @@ printf("%s",myString1.str().c_str());
 	//failed to create the file
 	printf("failed to create the file");
 	}
-
+*/
 
 	//strcpy(fluidname,argv[1]);//water;
 	/*p=atof(argv[2]);//2000;

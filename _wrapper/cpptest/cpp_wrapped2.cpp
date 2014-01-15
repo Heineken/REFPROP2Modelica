@@ -313,9 +313,9 @@ int main(int argc, char* argv[]){
 */
 
     //double dpdxi12;
-    double dn=d*wm/wmn; // mass density should be kept constant even through we change concentration..
+    double dn=d;//*wm/wmn; // mass density should be kept constant even through we change concentration..
     PRESSdll(t,dn,xnn,pn);
-    double dp=d*wm/wmp; // mass density should be kept constant even through we change concentration..
+    double dp=d;//*wm/wmp; // mass density should be kept constant even through we change concentration..
     PRESSdll(t,dp,xpp,pp);
 
     dpdxi12 = (pp - pn) / (delx2);

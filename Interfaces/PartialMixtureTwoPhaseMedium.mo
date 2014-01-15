@@ -81,6 +81,7 @@ end ThermodynamicState;
   replaceable record SaturationProperties
     "Saturation properties of two phase medium"
     extends Modelica.Icons.Record;
+
     Temperature Tl(min=1e-8) "saturation temperature at bubble line";
     Temperature Tv(min=1e-8) "saturation temperature at dew line";
     AbsolutePressure pl(min=1e-8) "saturation pressure at bubble line";
@@ -102,6 +103,8 @@ end ThermodynamicState;
   //   MolarMass MMv "molar mass at dew line (for pressure ps)";
   //   MassFraction Xl[nX] "Mass fractions of liquid phase";
   //   MassFraction Xv[nX] "Mass fractions of gaseous phase";
+        AbsolutePressure psat annotation(HideResult=true);
+        Temperature Tsat annotation(HideResult=true);
   end SaturationProperties;
 
 redeclare replaceable model extends BaseProperties(
@@ -894,7 +897,7 @@ end temperature;
 
   replaceable function vapourQuality "Return vapour quality"
     input ThermodynamicState state "Thermodynamic state record";
-    output MassFraction q "Vapour quality";
+    output MassFraction x "Vapour quality";
   protected
     constant SpecificEnthalpy eps = 1e-8;
   algorithm
@@ -905,7 +908,7 @@ end temperature;
   //     pressure(state), state.X)) - bubbleEnthalpy(
   //     setSat_pX(
   //     pressure(state), state.X)) + eps), 0), 1);
-    q := state.q;
+    x := state.q;
     annotation(Documentation(info="<html></html>"));
   end vapourQuality;
 

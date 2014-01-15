@@ -1366,126 +1366,137 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 				ddddp_h = (-dt*dbeta*dbeta + dbeta + dxkappa*dd*dCp)/dCp;
 				ddddh_p = -dbeta*dd/dCp;
 
-
-				// numerical derivative for ddddzi
-
-				double dpdT_zv,dpdv_Tz,dhdT_vz,dhdv_Tz;
-				dpdT_zv = dbeta/dxkappa;
-				dpdv_Tz= -dd/dxkappa;
-				dhdT_vz = dCv+dbeta/(dd*dxkappa);
-				dhdv_Tz = (dt*dbeta/dxkappa - 1/dxkappa);
-
-/*
-				double href[ncmax],dpdz_tv[ncmax],dhdz_tv[ncmax],dvdz_ph[ncmax],ddddX_ph_tmp[ncmax];
-				//href[0] = 28945.714499977374; // ammoniaL
-			    //href[1] = 45957.1914944204584; // water
-
-				href[0] = 8295.6883966232; //methane
-
-				href[1] = 14873.1879732343; //ethane
-
-			    double delx=1e-7,delx2,R,dxmoln[ncmax],dxmolp[ncmax],t0,d0,tau,delta,phi01,phi10,phig10,pn,hn,pp,hp;
-				long im1=-1, i0=0, ip1=1;
-				delx2=delx*2;
-
-				for (int n = 1; n < lnc+1; n++)  {
-				//double n=1;// derivative wrt component n
-
-			 	for (int i = 0; i < lnc; i++)  {
-			 		dxmoln[i] = dxmol[i];
-			 		dxmolp[i] = dxmol[i];
-			    }
-			 	dxmoln[n-1] = dxmoln[n-1] - delx;
-			    dxmolp[n-1] = dxmolp[n-1] + delx;
-
-				// negative increment
-				 RMIX2dll(dxmol, R); // R must be constant for some reason?
-				 RDXHMXdll(&im1,&i0,&i0,dxmoln,t0,d0,lerr,errormsg,errormessagelength);
-				 tau = t0 / dt;
-				 delta =dd / d0;
-				 PHIXdll(&i0,&ip1, tau, delta, dxmoln, phi01);
-				 PHIXdll(&ip1,&i0, tau, delta, dxmoln, phi10);
-			     PHI0dll(&ip1, &i0, dt, dd, dxmoln, phig10);
-				 pn = dd * R * dt * (1 + phi01);
-				 //hrn = R * t * (1 + phi10 + phi01);
-			     hn = R * dt * (1 + phig10 + phi10 + phi01)  + dxmoln[0]*href[0] + dxmoln[1]*href[1];;
-
-			    // positive increment
-			     //RMIX2dll(dxmol, R); // R must be constant for some reason?
-				 RDXHMXdll(&im1,&i0,&i0,dxmolp,t0,d0,lerr,errormsg,errormessagelength);
-				 tau = t0 / dt;
-				 delta =dd / d0;
-				 PHIXdll(&i0,&ip1, tau, delta, dxmolp, phi01);
-				 PHIXdll(&ip1,&i0, tau, delta, dxmolp, phi10);
-			     PHI0dll(&ip1, &i0, dt, dd, dxmolp, phig10);
-				 pp = dd * R * dt * (1 + phi01);
-			     //hrp = R * t * (1 + phi10 + phi01);
-			     hp = R * dt * (1 + phig10 + phi10 + phi01)  + dxmolp[0]*href[0] + dxmolp[1]*href[1];;
-
-			    // numerical  derivatives..
-			     dpdz_tv[n-1] = (pp - pn) / delx2;
-			     dhdz_tv[n-1] = (hp - hn) / delx2;
-
-			    // expression from jacobian matrix transformation
-				dvdz_ph[n-1] = (dpdT_zv*dhdz_tv[n-1] - dhdT_vz*dpdz_tv[n-1]) / (dpdT_zv*dhdv_Tz - dhdT_vz*dpdv_Tz);
-				ddddX_ph_tmp[n-1] = -dd*dd*dvdz_ph[n-1]; // this is still in refprop units, so X is moli/moltot..
-
-				}
-
-				//printf("dhdz_tv[0] = %f\n",dhdz_tv[0]);
-				//printf("dhdz_tv[1] = %f\n",dhdz_tv[1]);
-
-				double dxmolnew[ncmax],dwmnew[ncmax];
-				dxmolnew[0] =1;
-				dxmolnew[1] =0;
-				WMOLdll(dxmolnew,dwmnew[0]);
-				dxmolnew[0] =0;
-				dxmolnew[1] =1;
-				WMOLdll(dxmolnew,dwmnew[1]);
-//				ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*dxmol[0]/dxkg[0]*dwm;
-//				ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*dxmol[1]/dxkg[1]*dwm;
-				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*1/(dwmnew[0]/dwm)*dwm;
-				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*1/(dwmnew[1]/dwm)*dwm;
-				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*dwm;
-				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*dwm;
-
-				double dxdz1 = dwmnew[0]/dwm - dxmol[0]*dwmnew[0]*dwmnew[0]/(dwm*dwm);
-				double dxdz2 = dwmnew[1]/dwm - dxmol[1]*dwmnew[1]*dwmnew[1]/(dwm*dwm);
-
-				//double ddmassddmol = dd*(dwmnew[0]*)
-
-				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*(dwmnew[0]*dxmol[1]*dwmnew[1]/(dwm*dwm))*dwm;
-				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*(dwmnew[0]*dxmol[0]*dwmnew[1]/(dwm*dwm))*dwm;
-
-				ddddX_ph = (ddddX_ph_tmp[0] - ddddX_ph_tmp[1])/(dxdz1+dxdz2)*dwm;
-
-				// this does not work...
-				*/
-
-				double dpdz_td,dhdz_td;
-				//double dxmolnew[ncmax],dwmnew;
-				double pnew,hnew;
-				double dvdz_ph;
-
-				// numerical derivative for independent mass fraction
-				/* NOTE THAT IT IS DIFFICULT TO CHANGE FROM MOLE TO MASS BASIS, WHEN PERFORMING A NUMERICAL DERIVATIVE wrt composition. I DID NOT SUCCEED */
-				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
-				//XMASSdll(dxmol,dxkgnew,dwmnew);
-				dxkgnew[0] = dxkg[0]+1e-5;
-				dxkgnew[1] = dxkg[1]-1e-5;
+				//using PHFLSH to get numerical derivative ddddX_ph
+				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew, dnew;
+//					XMASSdll(dxmol,dxkg,dwmnew);
+				dxkgnew[0] = dxkg[0]+1e-7;
+				dxkgnew[1] = dxkg[1]-1e-7;
 				XMOLEdll(dxkgnew,dxmolnew,dwmnew);
-				double din;
-				din=dd*dwm/dwmnew;
-				PRESSdll (dt,din,dxmolnew,pnew);
-				ENTHALdll (dt,din,dxmolnew,hnew);
+				double dhin = dh*dwmnew/dwm; // this is needed because h in mass basis is constant..
+				PHFLSHdll(dp,dhin,dxmolnew,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+				ddddX_ph = (dnew*dwmnew-dd*dwm)/1e-7; // mass basis
 
-				dpdz_td = (pnew-dp)/1e-5;
-				dhdz_td = (hnew/dwmnew-dh/dwm)*dwm/1e-5;
 
-				// expression from jacobian matrix transformation
-				dvdz_ph = -(dpdT_zv*dhdz_td - dhdT_vz*dpdz_td) / (dpdT_zv*dhdv_Tz - dhdT_vz*dpdv_Tz);
-				ddddX_ph = -dd*dd*dvdz_ph;
-				ddddX_ph = ddddX_ph*dwm;  // this is already per X due to the above change in mass fraction and conversion..
+//				// numerical derivative for ddddzi
+//
+//				double dpdT_zv,dpdv_Tz,dhdT_vz,dhdv_Tz;
+//				dpdT_zv = dbeta/dxkappa;
+//				dpdv_Tz= -dd/dxkappa;
+//				dhdT_vz = dCv+dbeta/(dd*dxkappa);
+//				dhdv_Tz = (dt*dbeta/dxkappa - 1/dxkappa);
+//
+///*
+//				double href[ncmax],dpdz_tv[ncmax],dhdz_tv[ncmax],dvdz_ph[ncmax],ddddX_ph_tmp[ncmax];
+//				//href[0] = 28945.714499977374; // ammoniaL
+//			    //href[1] = 45957.1914944204584; // water
+//
+//				href[0] = 8295.6883966232; //methane
+//
+//				href[1] = 14873.1879732343; //ethane
+//
+//			    double delx=1e-7,delx2,R,dxmoln[ncmax],dxmolp[ncmax],t0,d0,tau,delta,phi01,phi10,phig10,pn,hn,pp,hp;
+//				long im1=-1, i0=0, ip1=1;
+//				delx2=delx*2;
+//
+//				for (int n = 1; n < lnc+1; n++)  {
+//				//double n=1;// derivative wrt component n
+//
+//			 	for (int i = 0; i < lnc; i++)  {
+//			 		dxmoln[i] = dxmol[i];
+//			 		dxmolp[i] = dxmol[i];
+//			    }
+//			 	dxmoln[n-1] = dxmoln[n-1] - delx;
+//			    dxmolp[n-1] = dxmolp[n-1] + delx;
+//
+//				// negative increment
+//				 RMIX2dll(dxmol, R); // R must be constant for some reason?
+//				 RDXHMXdll(&im1,&i0,&i0,dxmoln,t0,d0,lerr,errormsg,errormessagelength);
+//				 tau = t0 / dt;
+//				 delta =dd / d0;
+//				 PHIXdll(&i0,&ip1, tau, delta, dxmoln, phi01);
+//				 PHIXdll(&ip1,&i0, tau, delta, dxmoln, phi10);
+//			     PHI0dll(&ip1, &i0, dt, dd, dxmoln, phig10);
+//				 pn = dd * R * dt * (1 + phi01);
+//				 //hrn = R * t * (1 + phi10 + phi01);
+//			     hn = R * dt * (1 + phig10 + phi10 + phi01)  + dxmoln[0]*href[0] + dxmoln[1]*href[1];;
+//
+//			    // positive increment
+//			     //RMIX2dll(dxmol, R); // R must be constant for some reason?
+//				 RDXHMXdll(&im1,&i0,&i0,dxmolp,t0,d0,lerr,errormsg,errormessagelength);
+//				 tau = t0 / dt;
+//				 delta =dd / d0;
+//				 PHIXdll(&i0,&ip1, tau, delta, dxmolp, phi01);
+//				 PHIXdll(&ip1,&i0, tau, delta, dxmolp, phi10);
+//			     PHI0dll(&ip1, &i0, dt, dd, dxmolp, phig10);
+//				 pp = dd * R * dt * (1 + phi01);
+//			     //hrp = R * t * (1 + phi10 + phi01);
+//			     hp = R * dt * (1 + phig10 + phi10 + phi01)  + dxmolp[0]*href[0] + dxmolp[1]*href[1];;
+//
+//			    // numerical  derivatives..
+//			     dpdz_tv[n-1] = (pp - pn) / delx2;
+//			     dhdz_tv[n-1] = (hp - hn) / delx2;
+//
+//			    // expression from jacobian matrix transformation
+//				dvdz_ph[n-1] = (dpdT_zv*dhdz_tv[n-1] - dhdT_vz*dpdz_tv[n-1]) / (dpdT_zv*dhdv_Tz - dhdT_vz*dpdv_Tz);
+//				ddddX_ph_tmp[n-1] = -dd*dd*dvdz_ph[n-1]; // this is still in refprop units, so X is moli/moltot..
+//
+//				}
+//
+//				//printf("dhdz_tv[0] = %f\n",dhdz_tv[0]);
+//				//printf("dhdz_tv[1] = %f\n",dhdz_tv[1]);
+//
+//				double dxmolnew[ncmax],dwmnew[ncmax];
+//				dxmolnew[0] =1;
+//				dxmolnew[1] =0;
+//				WMOLdll(dxmolnew,dwmnew[0]);
+//				dxmolnew[0] =0;
+//				dxmolnew[1] =1;
+//				WMOLdll(dxmolnew,dwmnew[1]);
+////				ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*dxmol[0]/dxkg[0]*dwm;
+////				ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*dxmol[1]/dxkg[1]*dwm;
+//				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*1/(dwmnew[0]/dwm)*dwm;
+//				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*1/(dwmnew[1]/dwm)*dwm;
+//				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*dwm;
+//				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*dwm;
+//
+//				double dxdz1 = dwmnew[0]/dwm - dxmol[0]*dwmnew[0]*dwmnew[0]/(dwm*dwm);
+//				double dxdz2 = dwmnew[1]/dwm - dxmol[1]*dwmnew[1]*dwmnew[1]/(dwm*dwm);
+//
+//				//double ddmassddmol = dd*(dwmnew[0]*)
+//
+//				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*(dwmnew[0]*dxmol[1]*dwmnew[1]/(dwm*dwm))*dwm;
+//				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*(dwmnew[0]*dxmol[0]*dwmnew[1]/(dwm*dwm))*dwm;
+//
+//				ddddX_ph = (ddddX_ph_tmp[0] - ddddX_ph_tmp[1])/(dxdz1+dxdz2)*dwm;
+//
+//				// this does not work...
+//				*/
+//
+//				double dpdz_td,dhdz_td;
+//				//double dxmolnew[ncmax],dwmnew;
+//				double pnew,hnew;
+//				double dvdz_ph;
+//
+//				// numerical derivative for independent mass fraction
+//				/* NOTE THAT IT IS DIFFICULT TO CHANGE FROM MOLE TO MASS BASIS, WHEN PERFORMING A NUMERICAL DERIVATIVE wrt composition. I DID NOT SUCCEED */
+//				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
+//				//XMASSdll(dxmol,dxkgnew,dwmnew);
+//				dxkgnew[0] = dxkg[0]+1e-5;
+//				dxkgnew[1] = dxkg[1]-1e-5;
+//				XMOLEdll(dxkgnew,dxmolnew,dwmnew);
+//				double din;
+//				din=dd*dwm/dwmnew;
+//				PRESSdll (dt,din,dxmolnew,pnew);
+//				ENTHALdll (dt,din,dxmolnew,hnew);
+//
+//				dpdz_td = (pnew-dp)/1e-5;
+//				dhdz_td = (hnew/dwmnew-dh/dwm)*dwm/1e-5;
+//
+//				// expression from jacobian matrix transformation
+//				dvdz_ph = -(dpdT_zv*dhdz_td - dhdT_vz*dpdz_td) / (dpdT_zv*dhdv_Tz - dhdT_vz*dpdv_Tz); // the minus in front comes from ders wrt z is a change in both concentrations
+//				ddddX_ph = -dd*dd*dvdz_ph;
+//				ddddX_ph = ddddX_ph*dwm;  // this is already per X due to the above change in mass fraction and conversion..
+
 
 
 			} else { // two-phase region, get derivative of density
@@ -1627,24 +1638,28 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 
 				// in the following HA and HB are points in two-phase, where the numerical derivative changes "the sign of change", e.g dT into -dT smoothly (linearly)
 
-					//using PHFLSH to get numerical derivative ddddzi
+					//using PHFLSH to get numerical derivative ddddp_h
 					double dnew,dpnew;
 					dpnew = dp +1e-3; // change in 1 Pa
 					PHFLSHdll(dpnew,dh,dxmol,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
 					ddddp_h = (dnew-dd)/1e-3;
 
+					//using PHFLSH to get numerical derivative ddddh_p
 					double dhnew;
 					dhnew = dh +(1*dwm/1000); // change in 1 J/kg*K
 					PHFLSHdll(dp,dhnew,dxmol,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
 					ddddh_p = (dnew-dd)/(1*dwm/1000);
 
+
+					//using PHFLSH to get numerical derivative ddddX_ph
 					double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
 //					XMASSdll(dxmol,dxkg,dwmnew);
-					dxkgnew[0] = dxkg[0]+1e-5;
-					dxkgnew[1] = dxkg[1]-1e-5;
+					dxkgnew[0] = dxkg[0]+1e-7;
+					dxkgnew[1] = dxkg[1]-1e-7;
 					XMOLEdll(dxkgnew,dxmolnew,dwmnew);
-					PHFLSHdll(dp,dh,dxmolnew,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
-					ddddX_ph = (dnew*dwm-dd*dwm)/1e-5; // mass basis
+					double dhin = dh*dwmnew/dwm; // this is needed because h in mass basis is constant..
+					PHFLSHdll(dp,dhin,dxmolnew,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+					ddddX_ph = (dnew*dwmnew-dd*dwm)/1e-7; // mass basis
 
 /*
 					double HA,HB,dxmolnew[ncmax],Tnew,pnew,dlow,dhigh,hlow,hhigh,h_l,h_v;

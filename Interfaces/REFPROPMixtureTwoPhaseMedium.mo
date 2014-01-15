@@ -722,6 +722,8 @@ end ThermodynamicState;
     assert(satprops[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
 
     sat := SaturationProperties(
+    psat=99999,
+    Tsat=99999,
         Tl=satprops[2],
         Tv=satprops[3],
         pl=satprops[4],
@@ -1967,6 +1969,39 @@ end ThermodynamicState;
       s_out := s_out + delimiter + s_in[i];
     end for;
   end StrJoin;
+
+  replaceable function setSat_p
+    "Return saturation property record from pressure"
+    extends Modelica.Icons.Function;
+    input AbsolutePressure p "pressure";
+    input MassFraction X[nX] "Mass fractions";
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+      sat := setSat(
+        "p",
+        p,
+        X,
+        Tsurft,
+        calcTransport);
+  end setSat_p;
+
+  replaceable function setSat_T
+    "Return saturation property record from temperature"
+    extends Modelica.Icons.Function;
+    input Temperature T "temperature";
+    input MassFraction X[nX] "Mass fractions";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+        sat := setSat(
+        "t",
+        T,
+        X,
+        calcTransport=calcTransport);
+  end setSat_T;
   annotation (Documentation(info="<html>
 <p>
 <b>REFPROPMedium</b> is a package that delivers <b>REFPROP</b> data to a model based on and largely compatible to the Modelica.Media library.

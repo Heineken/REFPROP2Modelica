@@ -930,7 +930,7 @@ type DerDerPressureByTemperatureByDensity = Real (unit="(m2)/(s2.K)");
 
 type DerEnthalpyByDensity = Real (unit="J.m3/kg");
 //type DerEnthalpyByPressure = Real (unit="J.m.s2/kg");
-type DerEnthalpyByTemperature = Real (unit="J/K");
+type DerEnthalpyByTemperature = Real (unit="J/(kg.K)");
 
     annotation(Documentation(info="<html>
   <h1>PartialMixtureTwoPhaseMedium</h1>

@@ -27,9 +27,8 @@ equation
   h=3e5 + time*25e5;
   X={0.5,0.5};
 
-  state = Medium.setState_phX(p,h,X,calcTransport=true,partialDersInputChoice=3);
+  state = Medium.setState_phX(p,h,X,calcTransport=false,partialDersInputChoice=3);
   q = Medium.vapourQuality(state);
-
   d = Medium.density(state);
 
   dddh_pX = Medium.density_derh_p(state);

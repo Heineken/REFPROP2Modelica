@@ -3,4 +3,8 @@ PropsMixture
 PropsMixtureTwo
 PropsPureSubstance
 R410mixTester
+Water_MixtureTwoPhase_pT
 PropsMixtureNH3H2O
+NH3_Water_setSatModel
+NH3_Water_setStateModel
+numerical_jacobian_test_setState_ph

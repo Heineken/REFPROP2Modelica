@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #if defined(__ISWINDOWS__)
@@ -75,7 +76,7 @@ std::string loadedFluids;
  * properties using the molecular weight. It is stored in g/mol.
  */
      long kq 				= 2; // all qualities are calculated on a mass basis
-static const double noValue	= -1e+10;
+static const double noValue	= 0;
 
 //static const std::string FLUIDS_PATH = "fluids";
 //static const std::string LIN_LIBRARY = "librefprop.so";
@@ -93,45 +94,41 @@ static const double noValue	= -1e+10;
 //  double qualityFactor         = noValue;   // qmass = qmole * mw_vap / mw
 
 bool   debug;      		// set the debug flag
+bool calcTrans;
+//bool calcTwoPhaseNumDers;
+//bool calcTwoPhasePsuedoAnalDers;
+//bool dynstatesTPX;
+int PartialDersInputChoice;
+
 //long   lerr;  			// Error return mechanism
 double dhelp = noValue;
 
-
-/*
- * Properties for saturation states. "dew" refers to the dew point and
- * "bub" describes the bubble point.
- */
-double  dtdew, dpdew, ddldew, ddvdew, dtbub, dpbub, ddlbub, ddvbub;
-int flushSaturation() {
-	dtdew=noValue;
-	dpdew=noValue;
-	ddldew=noValue;
-	ddvdew=noValue;
-	dtbub=noValue;
-	dpbub=noValue;
-	ddlbub=noValue;
-	ddvbub=noValue;
-	if (debug) printf ("Finished flushing saturation properties.\n");
-	return 0;
-}
-
+// Properties for setSat functions
+double dxmolsat[ncmax], dwmsat, dpsat, dtsat,ddlsat,ddvsat,
+	dxmollsat[ncmax],dxmolvsat[ncmax],dplsat,dhlsat,dslsat,
+	dcvlsat,dcplsat,dwlsat,dpvsat,dhvsat,dsvsat,dcvvsat,dcpvsat,
+	dwvsat,dtlsat,dtvsat;
 
 /*
  * Most of the fluid properties are stored here. There are arrays for
  * composition information as well as single values for the other
  * properties.
  * The flush function gets called when the state changes and the
- * previously calculated are not valid anymore. A change of state also leads
- * to changed saturation conditions.
+ * previously calculated are not valid anymore.
  */
 double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
 	ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
-	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,
-	ddddp, dd2pdt2, dd2pdtd, ddhdt,	df, deta, dtcx, dstn;
+	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta;
 
-double ddhdt_d, ddhdt_p, ddhdd_t, ddhdd_p, ddhdp_t, ddhdp_d;
+double *dxkg;
 
-double ddddp_h, ddddh_p;
+// viscosity and thermal conductivity
+double deta, dtcx;
+
+// partial derivatives
+double ddddp_h, ddddh_p, ddddX_ph,
+	ddddp_T, ddddT_p, ddddX_pT,
+	ddhdp_T, ddhdT_p, ddhdX_pT;
 
 int flushProperties(){
 	dt=noValue;
@@ -151,37 +148,29 @@ int flushProperties(){
 	dw=noValue;
 	dwliq=noValue;
 	dwvap=noValue;
+
 	dhjt=noValue;
 	dZ[0]=noValue;
 	dA=noValue;
 	dG=noValue;
 	dxkappa=noValue;
 	dbeta=noValue;
-	ddpdd=noValue;
-	dd2pdd2=noValue;
-	ddpdt=noValue;
-	ddddt=noValue;
-	ddddp=noValue;
-	dd2pdt2=noValue;
-	dd2pdtd=noValue;
-	ddhdt=noValue;
-	df=noValue;
 	deta=noValue;
 	dtcx=noValue;
-	dstn=noValue;
 
-	ddhdt_d=noValue;
-	ddhdt_p=noValue;
-	ddhdd_t=noValue;
-	ddhdd_p=noValue;
-	ddhdp_t=noValue;
-	ddhdp_d=noValue;
-
+	ddddX_ph=noValue;
 	ddddp_h=noValue;
 	ddddh_p=noValue;
 
+	ddddp_T=noValue;
+	ddddT_p=noValue;
+	ddddX_pT=noValue;
+	ddhdp_T=noValue;
+	ddhdT_p=noValue;
+	ddhdX_pT=noValue;
+
 	if (debug) printf ("Finished flushing normal fluid properties.\n");
-	return flushSaturation();
+	return 0;
 }
 
 
@@ -323,6 +312,11 @@ VIRCdll_POINTER VIRCdll;
 WMOLdll_POINTER WMOLdll;
 XMASSdll_POINTER XMASSdll;
 XMOLEdll_POINTER XMOLEdll;
+
+RMIX2dll_POINTER RMIX2dll;
+RDXHMXdll_POINTER RDXHMXdll;
+PHIXdll_POINTER PHIXdll;
+PHI0dll_POINTER PHI0dll;
 
 
 /*
@@ -608,13 +602,17 @@ std::string resolve_error(std::string in1, long lerr, char* errormsg) {
  * Load the library and handle all the
  * platform specific stuff.
  */
-double loadLibrary() {
+double loadLibrary(std::string sPath) {
 	if (RefpropdllInstance == NULL) { // Refprop is not loaded
 #if defined(__ISWINDOWS__)
 #if   defined(UNICODE)
-		RefpropdllInstance = LoadLibrary((LPCWSTR)libName);
+		sPath.append((LPCWSTR)pathSep);
+		sPath.append((LPCWSTR)libName);
+		RefpropdllInstance = LoadLibraryW(sPath.c_str());
 #else
-		RefpropdllInstance = LoadLibrary((LPCSTR)libName);
+		sPath.append((LPCSTR)pathSep);
+		sPath.append((LPCSTR)libName);
+		RefpropdllInstance = LoadLibrary(sPath.c_str());
 #endif
 #elif defined(__ISLINUX__)
 		RefpropdllInstance = dlopen(libName, RTLD_LAZY);
@@ -780,6 +778,12 @@ double setFunctionPointers() {
 		WMOLdll = (WMOLdll_POINTER) getFunctionPointer((char *) WMOLdll_NAME);
 		XMASSdll = (XMASSdll_POINTER) getFunctionPointer((char *) XMASSdll_NAME);
 		XMOLEdll = (XMOLEdll_POINTER) getFunctionPointer((char *) XMOLEdll_NAME);
+
+		RMIX2dll = (RMIX2dll_POINTER) getFunctionPointer((char *) RMIX2dll_NAME);
+		RDXHMXdll = (RDXHMXdll_POINTER) getFunctionPointer((char *) RDXHMXdll_NAME);
+		PHIXdll = (PHIXdll_POINTER) getFunctionPointer((char *) PHIXdll_NAME);
+		PHI0dll = (PHI0dll_POINTER) getFunctionPointer((char *) PHI0dll_NAME);
+
 		if (debug) printf ("Function pointers set to macro values.\n");
 		return OK;
 	}
@@ -790,10 +794,13 @@ double setFunctionPointers() {
  * Make sure the library is loaded
  * properly and set pointers.
  */
-double initRefprop() {
+double initRefprop(std::string sPath) {
+
+	//std::string rPath = std::string(sPath);
+
 	if (RefpropdllInstance == NULL) {
 		if (debug) printf ("Library not loaded, trying to do so.\n");
-		if (loadLibrary() != OK) {
+		if (loadLibrary(sPath) != OK) {
 			printf("Refprop library %s cannot be loaded, make sure you ",libName);
 			printf("installed it properly.\n");
 			return FAIL;
@@ -827,7 +834,9 @@ double setFluids(std::string sPath, std::string sFluids, char* error){
 	// sPath:   "/opt/refprop" or "C:\Program Files\Refprop"
 	// sFluids: "pentane|butane" or "air"
 
-	if (initRefprop() != OK){
+	//std::string rPath = std::string(sPath);
+
+	if (initRefprop(sPath) != OK){
 		std::cerr << "ERROR: library not loaded.\n";
 		std::terminate();
 	}
@@ -983,7 +992,7 @@ double getS_modelica() {
 
 double getWM_modelica(){
 	//molecular weight
-	return dwm/1000;
+	return dwm/1000;  // g/mol to kg/mol
 }
 
 double getDL_modelica(){
@@ -999,11 +1008,12 @@ double getDV_modelica(){
 double getQ_modelica(){
 	if (lnc>1 && abs(dqmol)<990) { // maintain special values
 		if (dwvap==noValue) WMOLdll(dxmolv,dwvap);
-		return dqmol*dwvap/dwm;
+		return dqmol*dwvap/dwm; // TODO can you show a case where this function is called more than once?
 	} else {
 		return dqmol;
 	}
 }
+
 
 double getCV_modelica(){
 	return dCv/dwm * 1000.0;
@@ -1066,6 +1076,7 @@ double getXKAPPA_modelica() {	// isothermal compressibility (= -1/V dV/dP = 1/rh
 double getBETA_modelica() {	// volume expansivity (= 1/V dV/dT = -1/rho dD/dT) [1/K]
 	return dbeta;
 }
+/*
 double getDPDD_modelica() {	// derivative dP/drho [kPa-L/mol] * 1000Pa/kPa * mol/g = Pa.m3 / kg
 	return ddpdd * 1000. / dwm;
 }
@@ -1087,35 +1098,43 @@ double getD2PDT2_modelica() {	// derivative d2P/dT2 [kPa/K^2] * 1000Pa/kPa = Pa/
 double getD2PDTD_modelica() {	// derivative d2P/dTd(rho) [J/mol-K] / g/mol * 1000g/kg = J/kg.K
 	return  dd2pdtd/dwm*1000.;
 }
-
-
+*/
+/*
 double get_dhdt_d_modelica() { //dH/dT at constant density [J/(mol-K)] / g/mol * 1000g/kg = J/kg.K
-	return ddhdt_d/dwm*1000;
+	return noValue;//ddhdt_d/dwm*1000;
 }
 double get_dhdt_p_modelica() { //dH/dT at constant pressure [J/(mol-K)]
-	return ddhdt_p/dwm*1000;
+	return noValue;//ddhdt_p/dwm*1000;
 }
 double get_dhdd_t_modelica() { //dH/drho at constant temperature [(J/mol)/(mol/L)] * mol/g * 1000g/kg / g/mol = (J/kg) / (kg/m3)
-	return ddhdd_t /dwm*1000. / dwm;
+	return noValue;//ddhdd_t /dwm*1000. / dwm;
 }
 double get_dhdd_p_modelica() { //dH/drho at constant pressure [(J/mol)/(mol/L)]
-	return ddhdd_p /dwm*1000. / dwm;
+	return noValue;//ddhdd_p /dwm*1000. / dwm;
 }
 double get_dhdp_t_modelica() { //dH/dP at constant temperature [J/(mol-kPa)] /dwm*1000. / (1000Pa/kPa) = J/kg.Pa
-	return ddhdp_t / dwm;
+	return noValue;//ddhdp_t / dwm;
 }
 double get_dhdp_d_modelica() { //dH/dP at constant density [J/(mol-kPa)]
-	return ddhdp_d / dwm;
+	return noValue;//ddhdp_d / dwm;
 }
+*/
 
-// Numerical derivatives
+// Derivatives
 // Derivative of density with respect to enthalpy at constant pressure
+double get_dddX_ph_modelica(){
+//	double dxmoltmp[ncmax],dwm1;
+//	dxmoltmp[0]=1;
+//	dxmoltmp[1]=0;
+//	WMOLdll(dxmoltmp,dwm1); // TODO this must be molecular weight of species 1 instead of vap... Take a look at how ddddX_pt is computed!!!
+	return ddddX_ph;//*dwm*dwm/dwm1; // [mol/l * mol/mol1] * g/mol * g/mol * mol1/g1 * 1e-3kg/g / 1e-3 m3/L =  kg/m3 * g/gi
+}
 double get_dddh_p_modelica(){
-	return ddddh_p*dwm*dwm/1000.; // (mol/l * mol/J) * g/mol * g/mol * 1kg/1000g = kg/m3 * kg/J
+	return ddddh_p*dwm*dwm/1000.; // [mol/l * mol/J] * g/mol * g/mol * 1e-3kg/g * 1e-3kg/g / 1e-3 m3/L =  kg/m3 * kg/J
 }
 // Derivative of density with respect to pressure at constant enthalpy
 double get_dddp_h_modelica(){
-	return ddddp_h*dwm/1000.; // mol/(l.kPa) * g/mol * 1kPa/1000Pa = kg/(m3.Pa)
+	return ddddp_h*dwm/1000; // [mol/l * 1/kPa) * g/mol * 1e-3kg/g  / 1e-3 m3/L  / 1e-3 kPa/Pa = kg/(m3.Pa)
 }
 
 
@@ -1171,147 +1190,11 @@ double getValue(std::string out) {
 	return noValue;
 }
 
-///*
-// * Improvised derivative computing. These functions are called
-// * after properties were calculated. Hence, we have density and
-// * pressure available. REFPROP is formulated with explicit d and
-// * T it should not take too much extra time.
-// */
-//double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
-//double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
-//int setExtra(bool debug, long lerr, char* errormsg){
-//	double rho,T;
-//	rho = getValue("d");
-//	T = getValue("T");
-//	if ((rho!=noValue)&&(T!=noValue)) { // call explicit function
-//	// get derivative of density with respect to pressure from Refprop library
-//	if (debug) printf("Calling THERM2 with %f and %f.\n",dt,dd);
-//	THERM2dll (dt,dd,dxmol,spare5,spare6,spare8,spare9,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
-////	deltaP = 1.;
-////	pLow   = dp - 0.5*deltaP;
-////	pHigh  = dp + 0.5*deltaP;
-////	rhoLow = 0;
-////	rhoHigh = 0;
-////	//PHFLSHdll(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-////	if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
-////	PHFLSHdll(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-////	if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
-////	PHFLSHdll(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-////	if (debug) printf("Setting ddddp from %f and %f.\n",rhoHigh,rhoLow);
-////	ddddp = (rhoHigh-rhoLow) / (pHigh-pLow);
-//
-//	// get derivative of density with respect to enthalpy numerically
-//	deltaH = 20.;
-//	hLow   = dh - 0.5*deltaH;
-//	hHigh  = dh + 0.5*deltaH;
-//	rhoLow = 0;
-//	rhoHigh = 0;
-//	//PHFLSHdll(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-//	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hLow);
-//	PHFLSHdll(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-//	if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,hHigh);
-//	PHFLSHdll(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-//	if (debug) printf("Setting dddhp from %f and %f.\n",rhoHigh,rhoLow);
-//	ddddh = (rhoHigh-rhoLow) / (hHigh-hLow);
-//	} else { // We have a problem!
-//		printf("Derivative calculation called at the wrong time: rho=%f and T=%f\n",rho,T);
-//	}
-//	return 0;
-//}
-
-//int updateExtra(double *der, long lerr){
-////	c  inputs:
-////	c        t--temperature [K]
-////	c      rho--molar density [mol/L]
-////	c        x--composition [array of mol frac]
-////	c  outputs:
-////	c        p--pressure [kPa]
-////	c        e--internal energy [J/mol]
-////	c        h--enthalpy [J/mol]
-////	c        s--entropy [J/mol-K]
-////	c       Cv--isochoric heat capacity [J/mol-K]
-////	c       Cp--isobaric heat capacity [J/mol-K]
-////	c        w--speed of sound [m/s]
-////	c        Z
-////	c      hjt
-////	c        A
-////	c        G
-////	c   xkappa
-////	c     beta
-////	c   dPdrho
-////	c   d2PdD2
-////	c      dPT
-////	c   drhodT
-////	c   drhodP
-////	c    d2PT2
-////	c   d2PdTD
-////	c   sparei--2 space holders for possible future properties
-//
-//
-////    subroutine DHD1(t,rho,x,dhdt_d,dhdt_p,dhdd_t,dhdd_p,dhdp_t,dhdp_d)
-////c
-////c  compute partial derivatives of enthalpy w.r.t. t, p, or rho at constant
-////c  t, p, or rho as a function of temperature, density, and composition
-////c
-////c  inputs:
-////c        t--temperature [K]
-////c      rho--molar density [mol/L]
-////c        x--composition [array of mol frac]
-////c  outputs:
-////c   get_dhdt_d_modelica();		--dH/dT at constant density [J/(mol-K)]
-////c   get_dhdt_p_modelica();		--dH/dT at constant pressure [J/(mol-K)]
-////c   get_dhdd_t_modelica();		--dH/drho at constant temperature [(J/mol)/(mol/L)]
-////c   get_dhdd_p_modelica();		--dH/drho at constant pressure [(J/mol)/(mol/L)]
-////c   get_dhdp_t_modelica();		--dH/dP at constant temperature [J/(mol-kPa)]
-////c   get_dhdp_d_modelica();		--dH/dP at constant density [J/(mol-kPa)]
-//
-////	double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
-////		ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
-////
-
-
-//
-//
-//
-//
-//	getDDDH
-//
-//
-//
-//
-////	THERM2dll (dt,dd,dxmol,spare5,spare6,spare8,spare9,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
-//
-//	//ASSIGN VALUES TO RETURN ARRAY
-//	der[0] = lerr;//error code
-//	der[1] = getP_modelica();   //pressure in Pa
-//	der[2] = getT_modelica();   //Temperature in K
-//	der[3] = getWM_modelica();  //molecular weight
-//	der[4] = getD_modelica();   //density
-//	der[5] = getDL_modelica();  //density of liquid phase
-//	der[6] = getDV_modelica();  //density of liquid phase
-//	der[7] = getQ_modelica();   //vapor quality on a mass basis [mass vapor/total mass] (q=0 indicates saturated liquid, q=1 indicates saturated vapor)
-//	der[8] = getE_modelica();   //internal energy
-//	der[9] = getH_modelica();   //specific enthalpy
-//	der[10] = getS_modelica();  //specific entropy
-//	der[11] = getCV_modelica(); // heat capacity
-//	der[12] = getCP_modelica(); // heat capacity
-//	der[13] = getW_modelica();  //speed of sound
-//	der[14] = getDDDH_modelica(); //ddhp
-//	der[15] = getDDDP_modelica(); //ddph
-//	der[16] = getWML_modelica();
-//	der[17] = getWMV_modelica();
-//
-//	double dxlkg[ncmax], dxvkg[ncmax];
-//
-//
-//	return 0;
-//}
-
 
 
 int updateDers(double *ders, long lerr){
 	//ASSIGN VALUES TO RETURN ARRAY
-	ders[0]  = lerr;//error code
+/*  ders[0]  = lerr;//error code
 	ders[1]  = getHJT_modelica(); 		// isenthalpic Joule-Thompson coefficient [K/Pa]
 	ders[2]  = getA_modelica();			// Helmholtz energy [J/kg]
 	ders[3]  = getG_modelica();			// Gibbs free energy [J/kg]
@@ -1332,6 +1215,22 @@ int updateDers(double *ders, long lerr){
 	ders[18] = get_dhdp_d_modelica();	// dH/dP at constant density [J/(kg-Pa)]
 	ders[19] = get_dddh_p_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
 	ders[20] = get_dddp_h_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
+*/
+	// TODO - I have reduced the variables thrown back.. Why us jtc, a, g derivatives here?
+	ders[0] = lerr;//error code
+	ders[1] = getXKAPPA_modelica();	// isothermal compressibility (= -1/V dV/dP = 1/rho dD/dP) [1/Pa]
+	ders[2] = getBETA_modelica();		// volume expansivity (= 1/V dV/dT = -1/rho dD/dT) [1/K]
+	ders[3] = get_dddX_ph_modelica();	// dD/dX at constant p,h
+	ders[4] = get_dddh_p_modelica();	// dD/dh at constant pressure [kg/m3 * kg/J]
+	ders[5] = get_dddp_h_modelica();	// dD/dp at constant enthalpy [kg/(m3.Pa)]
+
+	ders[6] =  ddddp_T*dwm/1000;        // (mol/L * 1/kPa) * g/mol / 1000 g/kg * 1000L/m3 / 1000 Pa/kPa
+	ders[7] =  ddddT_p*dwm;			    // (mol/L * 1/K) * g/mol / 1000 g/kg * 1000L/m3
+	ders[8] =  ddddX_pT;// Done in function *dwm*dwm/dw1;  // [mol/l * mol/molvap] * g/mol * g/mol * moli/gi * 1e-3kg/g / 1e-3 m3/L =  kg/m3 * g/gi
+	ders[9] =  ddhdp_T/dwm;   	        // (J/mol * 1/kPa) / g/mol * 1000 g/kg / 1000 Pa/kPa
+	ders[10] = ddhdT_p/dwm*1000;		// (J/mol * 1/K) / g/mol * 1000 g/kg
+	ders[11] = ddhdX_pT;// Done in function /dwm*1000*dwm/dw1;				// (J/mol * mol/molvap) / g/mol * 1000 g/kg * g/mol * molvap/gvap = J/kg * g/gvap
+
 	return 0;
 }
 
@@ -1340,62 +1239,604 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 	if (DEBUGMODE) debug = true;
 	long lerr = 0;
 
-	double spare3,spare4,spare5,spare6,spare7[ncmax],spare8[ncmax],spare9,spare10,spare11,spare12,spare13,spare14;
-	double deltaH,hLow,hHigh,deltaP,pLow,pHigh,rhoLow,rhoHigh;
+	double spare3,spare4,spare5,spare6,spare7,spare8,spare9,spare10,spare2[ncmax],spare1[ncmax];
+	double spare11,spare12,spare13,spare14,spare15,spare16,spare17,spare19,spare18,spare20,spare21;
 
 	if ((dd!=noValue)&&(dt!=noValue)) {
-		// call explicit functions in d and T
-		// get derivatives from Refprop library
-		if (debug) printf("Calling THERM2 with T=%f and rho=%f.\n",dt,dd);
-		THERM2dll (dt,dd,dxmol,spare5,spare6,spare9,spare10,dCv,dCp,dw,dZ,dhjt,dA,dG,dxkappa,dbeta,ddpdd,dd2pdd2,ddpdt,ddddt,ddddp,dd2pdt2,dd2pdtd,spare3,spare4);
+		// THERM2dll(dt, dd, dxmol, spare5, spare6, spare9, spare10, dCv, dCp, dw,dZ, dhjt, dA, dG, dxkappa, dbeta, ddpdd, dd2pdd2, ddpdt, ddddt,ddddp, dd2pdt2, dd2pdtd, spare3, spare4);
+		// we want to get props depending on quality below..
 
-		// get derivatives of enthalpy
-		if (debug) printf("Calling DHD1 with T=%f and rho=%f.\n",dt,dd);
-		DHD1dll(dt,dd,dxmol,ddhdt_d,ddhdt_p,ddhdd_t,ddhdd_p,ddhdp_t,ddhdp_d);
+		if (PartialDersInputChoice==4) { // use TPX numeric derivs
 
-		/*
-		 * With the above values, the cyclic relation can be used to
-		 * determine all necessary values.
-		 *
-		 * -1 = ddddp_ana * 1/(props.state.dhdp_rho) * props.state.dhdrho_p;
-		 * ddddh_ana * props.state.dhdrho_p= 1;
-		 *
-		 * Below is a numerical approximation due to problems in the
-		 * two-phase region.
-		 */
+			if (dqmol < 0. || dqmol > 1.) { // single-phase region
+				if (debug) printf ("Using single-phase derivatives.\n");
+				if (debug) printf("Calling THERM3 with T=%f and rho=%f.\n",dt,dd);
+				THERM3dll (dt,dd,dxmol,dxkappa,dbeta,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12);
 
-		if (dqmol < 0. || dqmol > 1.) { // single-phase region
-			if (debug) printf ("Using single-phase derivatives.\n");
-			ddddp_h = -1. * ddhdp_d / ddhdd_p;
-			ddddh_p = 1./ddhdd_p;
-		} else { // two-phase region, get derivative of density with respect to enthalpy numerically
-			if (debug) printf ("Using two-phase derivatives.\n");
-			deltaP = 0.00005; // 0.05 Pascal difference
-			pLow   = dp - 0.5*deltaP;
-			pHigh  = dp + 0.5*deltaP;
-			rhoLow = 0;
-			rhoHigh = 0;
-			//PHFLSHdll(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with %f and %f.\n",pLow,dh);
-			PHFLSHdll(pLow,dh,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with %f and %f.\n",pHigh,dh);
-			PHFLSHdll(pHigh,dh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Setting dddp_h_num from %f and %f.\n",rhoHigh,rhoLow);
-			ddddp_h = (rhoHigh-rhoLow) / (pHigh-pLow);
+				// analytical derivatives of density:
+				ddddT_p = -dbeta*dd;
+				ddddp_T = dxkappa*dd;
 
-			// get derivative of density with respect to enthalpy numerically
-			deltaH = 0.05; // 0.05 Joule total difference
-			hLow   = dh - 0.5*deltaH;
-			hHigh  = dh + 0.5*deltaH;
-			rhoLow = 0;
-			rhoHigh = 0;
-			//PHFLSHdll(dp,hLow,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hLow);
-			PHFLSHdll(dp,hLow,dxmol,spare3,rhoLow,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Calling PHFLSH with p=%f and h=%f for derivative.\n",dp,hHigh);
-			PHFLSHdll(dp,hHigh,dxmol,spare3,rhoHigh,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12,spare13,spare14,lerr,errormsg,errormessagelength);
-			if (debug) printf("Setting dddh_p_num from %f and %f.\n",rhoHigh,rhoLow);
-			ddddh_p = (rhoHigh-rhoLow) / (hHigh-hLow);
+				// analytical derivatives of enthalpy:
+				ddhdT_p = dCp;
+				ddhdp_T = (1-dt*dbeta)/dd;
+
+
+				// numerical derivatives wrt. independent mass fraction,
+				// NOTE THAT IT IS DIFFICULT TO CHANGE FROM MOLE TO MASS BASIS, WHEN PERFORMING A NUMERICAL DERIVATIVE wrt composition. I DID NOT SUCCEED
+				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
+				double dnew,hnew;
+				//XMASSdll(dxmol,dxkgnew,dwmnew);
+				dxkgnew[0] = dxkg[0]+1e-7;
+				dxkgnew[1] = dxkg[1]-1e-7;
+				XMOLEdll(dxkgnew,dxmolnew,dwmnew);
+				TPFLSHdll(dt,dp,dxmolnew,dnew,spare3,spare4,spare1,spare2,spare5,spare6,hnew,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+				ddddX_pT = (dnew*dwmnew-dd*dwm)/1e-7; // this is on mass basis, due to the above mass change
+				ddhdX_pT = (hnew/dwmnew*1000-dh/dwm*1000)/1e-7; // this is on mass basis, due to the above mass change
+
+
+//			    double n;
+//				double href[ncmax],dpdz_tv[ncmax],dhdz_tv[ncmax];
+//			    href[0] = 28945.714499977374; // ammoniaL
+//			    href[1] = 45957.1914944204584; // water
+//
+//			    double delx=1e-7,delx2,R,dxmoln,dxmolp,t0,d0,tau,delta,phi01,phi10,phig10,pn,hn,pp,hp;
+//				long im1=-1, i0=0, ip1=1;
+//				int i;
+//
+//				for (n = 0; n < lnc; n++)  {
+//				//double n=1;// derivative wrt component n
+//
+//			 	for (i = 0; i < lnc; i++)  {
+//			 		dxmoln[i] = dxmol[i];
+//			 		dxmolp[i] = dxmol[i];
+//			    }
+//			 	dxmoln[n-1] = dxmoln[n-1] - delx;
+//			    dxmolp[n-1] = dxmolp[n-1] + delx;
+//
+//				// negative increment
+//				 RMIX2dll(dxmol, R); // R must be constant for some reason?
+//				 RDXHMXdll(&im1,&i0,&i0,dxmoln,t0,d0,lerr,errormsg,errormessagelength);
+//				 tau = t0 / dt;
+//				 delta =dd / d0;
+//				 PHIXdll(&i0,&ip1, tau, delta, dxmoln, phi01);
+//				 PHIXdll(&ip1,&i0, tau, delta, dxmoln, phi10);
+//			     PHI0dll(&ip1, &i0, dt, dd, dxmoln, phig10);
+//				 pn = dd * R * dt * (1 + phi01);
+//				 //hrn = R * t * (1 + phi10 + phi01);
+//			     hn = R * dt * (1 + phig10 + phi10 + phi01)  + dxmoln[0]*href[0] + dxmoln[1]*href[1];;
+//
+//			    // positive increment
+//			     //RMIX2dll(dxmol, R); // R must be constant for some reason?
+//				 RDXHMXdll(&im1,&i0,&i0,dxmolp,t0,d0,lerr,errormsg,errormessagelength);
+//				 tau = t0 / dt;
+//				 delta =dd / d0;
+//				 PHIXdll(&i0,&ip1, tau, delta, dxmolp, phi01);
+//				 PHIXdll(&ip1,&i0, tau, delta, dxmolp, phi10);
+//			     PHI0dll(&ip1, &i0, dt, dd, dxmolp, phig10);
+//				 pp = dd * R * dt * (1 + phi01);
+//			     //hrp = R * t * (1 + phi10 + phi01);
+//			     hp = R * dt * (1 + phig10 + phi10 + phi01)  + dxmolp[0]*href[0] + dxmolp[1]*href[1];;
+//
+//			    // derivatives..
+//			     dpdz_tv[n-1] = (pp - pn) / delx2;
+//			     //dhrdxi1 = (hrp - hrn) / delx2;
+//			     dhdz_tv[n-1] = (hp - hn) / delx2;
+//				}
+
+
+
+			} else {  // two-phase region, get derivative of density
+
+				// numerical derivative wrt. Temperature:
+				double dnew,hnew,dtnew;
+				dtnew=dt+1e-4;
+				TPFLSHdll(dtnew,dp,dxmol,dnew,spare3,spare4,spare1,spare2,spare5,spare6,hnew,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+				ddddT_p = (dnew-dd)/1e-4;
+				ddhdT_p = (hnew-dh)/1e-4;
+
+				// numerical derivative wrt. Pressure:
+				double dpnew=dp+1e-3; // this is a change in 1 Pa
+				TPFLSHdll(dt,dpnew,dxmol,dnew,spare3,spare4,spare1,spare2,spare5,spare6,hnew,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+				ddddp_T = (dnew-dd)/1e-3; // /1;
+				ddhdp_T = (hnew-dh)/1e-3; // /1;
+
+				// numerical derivative for independent mass fraction
+				/* NOTE THAT IT IS DIFFICULT TO CHANGE FROM MOLE TO MASS BASIS, WHEN PERFORMING A NUMERICAL DERIVATIVE wrt composition. I DID NOT SUCCEED */
+				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
+				//XMASSdll(dxmol,dxkgnew,dwmnew);
+				dxkgnew[0] = dxkg[0]+1e-7;
+				dxkgnew[1] = dxkg[1]-1e-7;
+				XMOLEdll(dxkgnew,dxmolnew,dwmnew);
+				TPFLSHdll(dt,dp,dxmolnew,dnew,spare3,spare4,spare1,spare2,spare5,spare6,hnew,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+				ddddX_pT = (dnew*dwmnew-dd*dwm)/1e-7; // this is on mass basis, due to the above mass change
+				ddhdX_pT = (hnew/dwmnew*1000-dh/dwm*1000)/1e-7; // this is on mass basis, due to the above mass change
+
+			}
+
+		} else {
+
+			if (dqmol < 0. || dqmol > 1.) { // single-phase region
+				if (debug) printf ("Using single-phase derivatives.\n");
+
+				if (debug) printf("Calling THERM3 with T=%f and rho=%f.\n",dt,dd);
+				THERM3dll (dt,dd,dxmol,dxkappa,dbeta,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12);
+
+				// analytical derivatives
+				ddddp_h = (-dt*dbeta*dbeta + dbeta + dxkappa*dd*dCp)/dCp;
+				ddddh_p = -dbeta*dd/dCp;
+
+				//using PHFLSH to get numerical derivative ddddX_ph
+				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew, dnew;
+//					XMASSdll(dxmol,dxkg,dwmnew);
+				dxkgnew[0] = dxkg[0]+1e-7;
+				dxkgnew[1] = dxkg[1]-1e-7;
+				XMOLEdll(dxkgnew,dxmolnew,dwmnew);
+				double dhin = dh*dwmnew/dwm; // this is needed because h in mass basis is constant..
+				PHFLSHdll(dp,dhin,dxmolnew,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+				ddddX_ph = (dnew*dwmnew-dd*dwm)/1e-7; // mass basis
+
+
+//				// numerical derivative for ddddzi
+//
+//				double dpdT_zv,dpdv_Tz,dhdT_vz,dhdv_Tz;
+//				dpdT_zv = dbeta/dxkappa;
+//				dpdv_Tz= -dd/dxkappa;
+//				dhdT_vz = dCv+dbeta/(dd*dxkappa);
+//				dhdv_Tz = (dt*dbeta/dxkappa - 1/dxkappa);
+//
+///*
+//				double href[ncmax],dpdz_tv[ncmax],dhdz_tv[ncmax],dvdz_ph[ncmax],ddddX_ph_tmp[ncmax];
+//				//href[0] = 28945.714499977374; // ammoniaL
+//			    //href[1] = 45957.1914944204584; // water
+//
+//				href[0] = 8295.6883966232; //methane
+//
+//				href[1] = 14873.1879732343; //ethane
+//
+//			    double delx=1e-7,delx2,R,dxmoln[ncmax],dxmolp[ncmax],t0,d0,tau,delta,phi01,phi10,phig10,pn,hn,pp,hp;
+//				long im1=-1, i0=0, ip1=1;
+//				delx2=delx*2;
+//
+//				for (int n = 1; n < lnc+1; n++)  {
+//				//double n=1;// derivative wrt component n
+//
+//			 	for (int i = 0; i < lnc; i++)  {
+//			 		dxmoln[i] = dxmol[i];
+//			 		dxmolp[i] = dxmol[i];
+//			    }
+//			 	dxmoln[n-1] = dxmoln[n-1] - delx;
+//			    dxmolp[n-1] = dxmolp[n-1] + delx;
+//
+//				// negative increment
+//				 RMIX2dll(dxmol, R); // R must be constant for some reason?
+//				 RDXHMXdll(&im1,&i0,&i0,dxmoln,t0,d0,lerr,errormsg,errormessagelength);
+//				 tau = t0 / dt;
+//				 delta =dd / d0;
+//				 PHIXdll(&i0,&ip1, tau, delta, dxmoln, phi01);
+//				 PHIXdll(&ip1,&i0, tau, delta, dxmoln, phi10);
+//			     PHI0dll(&ip1, &i0, dt, dd, dxmoln, phig10);
+//				 pn = dd * R * dt * (1 + phi01);
+//				 //hrn = R * t * (1 + phi10 + phi01);
+//			     hn = R * dt * (1 + phig10 + phi10 + phi01)  + dxmoln[0]*href[0] + dxmoln[1]*href[1];;
+//
+//			    // positive increment
+//			     //RMIX2dll(dxmol, R); // R must be constant for some reason?
+//				 RDXHMXdll(&im1,&i0,&i0,dxmolp,t0,d0,lerr,errormsg,errormessagelength);
+//				 tau = t0 / dt;
+//				 delta =dd / d0;
+//				 PHIXdll(&i0,&ip1, tau, delta, dxmolp, phi01);
+//				 PHIXdll(&ip1,&i0, tau, delta, dxmolp, phi10);
+//			     PHI0dll(&ip1, &i0, dt, dd, dxmolp, phig10);
+//				 pp = dd * R * dt * (1 + phi01);
+//			     //hrp = R * t * (1 + phi10 + phi01);
+//			     hp = R * dt * (1 + phig10 + phi10 + phi01)  + dxmolp[0]*href[0] + dxmolp[1]*href[1];;
+//
+//			    // numerical  derivatives..
+//			     dpdz_tv[n-1] = (pp - pn) / delx2;
+//			     dhdz_tv[n-1] = (hp - hn) / delx2;
+//
+//			    // expression from jacobian matrix transformation
+//				dvdz_ph[n-1] = (dpdT_zv*dhdz_tv[n-1] - dhdT_vz*dpdz_tv[n-1]) / (dpdT_zv*dhdv_Tz - dhdT_vz*dpdv_Tz);
+//				ddddX_ph_tmp[n-1] = -dd*dd*dvdz_ph[n-1]; // this is still in refprop units, so X is moli/moltot..
+//
+//				}
+//
+//				//printf("dhdz_tv[0] = %f\n",dhdz_tv[0]);
+//				//printf("dhdz_tv[1] = %f\n",dhdz_tv[1]);
+//
+//				double dxmolnew[ncmax],dwmnew[ncmax];
+//				dxmolnew[0] =1;
+//				dxmolnew[1] =0;
+//				WMOLdll(dxmolnew,dwmnew[0]);
+//				dxmolnew[0] =0;
+//				dxmolnew[1] =1;
+//				WMOLdll(dxmolnew,dwmnew[1]);
+////				ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*dxmol[0]/dxkg[0]*dwm;
+////				ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*dxmol[1]/dxkg[1]*dwm;
+//				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*1/(dwmnew[0]/dwm)*dwm;
+//				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*1/(dwmnew[1]/dwm)*dwm;
+//				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*dwm;
+//				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*dwm;
+//
+//				double dxdz1 = dwmnew[0]/dwm - dxmol[0]*dwmnew[0]*dwmnew[0]/(dwm*dwm);
+//				double dxdz2 = dwmnew[1]/dwm - dxmol[1]*dwmnew[1]*dwmnew[1]/(dwm*dwm);
+//
+//				//double ddmassddmol = dd*(dwmnew[0]*)
+//
+//				//ddddX_ph_tmp[0] = ddddX_ph_tmp[0]*(dwmnew[0]*dxmol[1]*dwmnew[1]/(dwm*dwm))*dwm;
+//				//ddddX_ph_tmp[1] = ddddX_ph_tmp[1]*(dwmnew[0]*dxmol[0]*dwmnew[1]/(dwm*dwm))*dwm;
+//
+//				ddddX_ph = (ddddX_ph_tmp[0] - ddddX_ph_tmp[1])/(dxdz1+dxdz2)*dwm;
+//
+//				// this does not work...
+//				*/
+//
+//				double dpdz_td,dhdz_td;
+//				//double dxmolnew[ncmax],dwmnew;
+//				double pnew,hnew;
+//				double dvdz_ph;
+//
+//				// numerical derivative for independent mass fraction
+//				/* NOTE THAT IT IS DIFFICULT TO CHANGE FROM MOLE TO MASS BASIS, WHEN PERFORMING A NUMERICAL DERIVATIVE wrt composition. I DID NOT SUCCEED */
+//				double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
+//				//XMASSdll(dxmol,dxkgnew,dwmnew);
+//				dxkgnew[0] = dxkg[0]+1e-5;
+//				dxkgnew[1] = dxkg[1]-1e-5;
+//				XMOLEdll(dxkgnew,dxmolnew,dwmnew);
+//				double din;
+//				din=dd*dwm/dwmnew;
+//				PRESSdll (dt,din,dxmolnew,pnew);
+//				ENTHALdll (dt,din,dxmolnew,hnew);
+//
+//				dpdz_td = (pnew-dp)/1e-5;
+//				dhdz_td = (hnew/dwmnew-dh/dwm)*dwm/1e-5;
+//
+//				// expression from jacobian matrix transformation
+//				dvdz_ph = -(dpdT_zv*dhdz_td - dhdT_vz*dpdz_td) / (dpdT_zv*dhdv_Tz - dhdT_vz*dpdv_Tz); // the minus in front comes from ders wrt z is a change in both concentrations
+//				ddddX_ph = -dd*dd*dvdz_ph;
+//				ddddX_ph = ddddX_ph*dwm;  // this is already per X due to the above change in mass fraction and conversion..
+
+
+
+			} else { // two-phase region, get derivative of density
+
+				// These are not computed in two-phase!
+				dxkappa=noValue;
+				dbeta=noValue;
+
+				if (PartialDersInputChoice==3) { // Using  phX  Analytical twophase derivatives
+					if (debug) printf ("Using Analytical twophase derivatives\n");
+
+		//			// TODO the below analytical derivs are wrong since saturated liquid and vapor concentrations change along evaporation..
+
+
+					/* j--phase flag: 1 = input x is liquid composition (bubble point)
+								2 = input x is vapor composition (dew point)
+								3 = input x is liquid composition (freezing point)
+								4 = input x is vapor composition (sublimation point)
+					*/
+
+					//compute saturated vapor state at const p
+					long kph2 = 2;
+					double dt_v,ddv_p,dCv_v,dCp_v,dwm_v,dxkappa_v,dbeta_v,h_v,s_v;
+					SATPdll(dp,dxmol,kph2,dt_v,spare3,ddv_p,spare2,spare1,lerr,errormsg,errormessagelength);
+					ENTHALdll(dt_v,ddv_p,dxmol,h_v);
+					//compute saturated liquid state at const p
+					long kph1 = 1;
+					double dt_l,ddl_p,dCv_l,dCp_l,dwm_l,dxkappa_l,dbeta_l,h_l,s_l;
+					SATPdll(dp,dxmol,kph1,dt_l,ddl_p,spare3,spare2,spare1,lerr,errormsg,errormessagelength);
+					ENTHALdll(dt_l,ddl_p,dxmol,h_l);
+					// compute partials
+					double dvdh_p,dTdp_clasius, dhdpL,dhdpV,dvdpL,dvdpV,dxdp_h,dvdp_h;
+					// compute drhodh_p
+					dvdh_p = (1/ddv_p - 1/ddl_p)/(h_v-h_l);
+					ddddh_p = -dd*dd*dvdh_p;
+					// get other sat props at const T,p,x
+					THERM2dll(dt, ddv, dxmolv, spare3, spare4, h_v, s_v, dCv_v, dCp_v, dwm_v,spare2, spare10, spare11, spare12, dxkappa_v, dbeta_v, spare13, spare14, spare15, spare16,spare17, spare18, spare19, spare20, spare21);
+					THERM2dll(dt, ddl, dxmoll, spare3, spare4, h_l, s_l, dCv_l, dCp_l, dwm_l,spare2, spare10, spare11, spare12, dxkappa_l, dbeta_l, spare13, spare14, spare15, spare16,spare17, spare18, spare19, spare20, spare21);
+					//ddv_v = ddv;
+					//ddl_l = ddl;
+					// compute drhodp_h
+					//dTdp_clasius =  (1/ddv - 1/ddl)/(s_v-s_l);
+					dTdp_clasius =  dt*(1/ddv - 1/ddl)/(h_v-h_l);
+					dhdpL = 1/ddl*(1-dbeta_l*dt_l)+dCp_l*dTdp_clasius;
+					dhdpV = 1/ddv*(1-dbeta_v*dt_v)+dCp_v*dTdp_clasius;
+					dvdpL = dbeta_l*1/ddl*dTdp_clasius-dxkappa_l*1/ddl;
+					dvdpV = dbeta_v*1/ddv*dTdp_clasius-dxkappa_v*1/ddv;
+					dxdp_h = (dhdpL + dqmol * (dhdpV-dhdpL))/(h_l-h_v);
+					dvdp_h = dvdpL+dxdp_h*(1/ddv-1/ddl)+dqmol*(dvdpV-dvdpL);
+					ddddp_h = -dd*dd*dvdp_h;
+
+					// analytical derivative for ddddzi
+					double dhdz_tp, dvdz_tp;
+					double dxkgv[ncmax],dwmv,dxkgl[ncmax],dwml;
+					XMASSdll(dxmolv,dxkgv,dwmv);
+					XMASSdll(dxmoll,dxkgl,dwml);
+					dhdz_tp = (h_v/dwmv*1000-h_l/dwml*1000)/(dxkgv[0]-dxkgl[0]);
+				    dvdz_tp = (1/(ddv*dwmv)-1/(ddl*dwml))/(dxkgv[0]-dxkgl[0]);
+				    dvdh_p = dvdh_p/dwm*dwm/1000;
+				    ddddX_ph = -dd*dwm*dd*dwm*(-dvdh_p*dhdz_tp+dvdz_tp);
+
+					//dhdz_tp = (h_v-h_l)/(dxmolv[0]-dxmoll[0]);
+				    //dvdz_tp = (1/ddv_v-1/ddl_l)/(dxmolv[0]-dxmoll[0]);
+				    //ddddX_ph = -dd*dd*(-dvdh_p*dhdz_tp+dvdz_tp);
+
+
+//					// numerical derivative for ddddzi, that ensures xmol is between 0 and 1
+//					double HA,HB,smooth,DX,dxmolnew[ncmax],dlow,dhigh;
+//					HA = 0.925*(h_v-h_l)+h_l;
+//					HB = 0.975*(h_v-h_l)+h_l;
+//
+//					/*
+//					// using PHFLSH to get numerical derivative ddddzi
+//					DX=0.005;
+//					if (dh < HA) {
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix, but refprop needs sum(x)=1
+//						PHFLSHdll(dp,dh,dxmolnew,spare14,dlow,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+//						ddddX_ph = (dlow-dd)/DX;
+//					} else if (dh > HB) {
+//						DX=-DX;
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix, but refprop needs sum(x)=1
+//						PHFLSHdll(dp,dh,dxmolnew,spare14,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+//						ddddX_ph = (dhigh-dd)/DX;
+//					} else {
+//						smooth=(dh-HA)/(HB-HA);
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+//						PHFLSHdll(dp,dh,dxmolnew,spare14,dlow,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+//						DX = -DX;
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+//						PHFLSHdll(dp,dh,dxmolnew,spare14,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+//						ddddX_ph = (dlow-dd)/(-DX)*(1-smooth) + smooth*(dhigh-dd)/(DX);
+//					}
+//					 */
+//
+//					// Using TPFLSH to get numerical derivative  ddddzi
+//					double dhdT_pX, dddT_pX,hlow,hhigh,dddX_pT,dhdX_pT;
+//
+//					dhdT_pX = (h_v - h_l)/(dt_v-dt_l);
+//					//dvdT_p = (1/ddv_v - 1/ddl_l)/(dt_v-dt_l);
+//					dddT_pX = -dd*dd*(1/ddv_v - 1/ddl_l)/(dt_v-dt_l);
+//
+//					DX=0.0025;
+//					if (dh < HA) {
+//						//DX = DX;
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix, but refprop needs sum(x)=1
+//						TPFLSHdll(dt,dp,dxmolnew,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+//						dddX_pT = (dlow-dd)/(DX);
+//						dhdX_pT = (hlow-dh)/(DX);
+//					} else if (dh > HB) {
+//						DX = -DX;
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+//						TPFLSHdll(dt,dp,dxmolnew,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+//						dddX_pT = (dhigh-dd)/(DX);
+//						dhdX_pT = (hhigh-dh)/(DX);
+//					} else { // something smooth
+//						smooth=(dh-HA)/(HB-HA);
+//						//DX = DX;
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+//						TPFLSHdll(dt,dp,dxmolnew,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+//						DX = -DX;
+//						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+//						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+//						TPFLSHdll(dt,dp,dxmolnew,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+//						dddX_pT = (dlow-dd)/(-DX)*(1-smooth) + smooth*(dhigh-dd)/(DX);
+//						dhdX_pT = (hlow-dh)/(-DX)*(1-smooth) + smooth*(hhigh-dh)/(DX);
+//					}
+//					ddddX_ph = -(dddT_pX*dhdX_pT-dhdT_pX*dddX_pT)/dhdT_pX;
+
+
+				} else if (PartialDersInputChoice==2) { // Using phX Numerical twophase derivatives
+					if (debug) printf ("Using Numerical two phase derivatives\n");
+
+				// in the following HA and HB are points in two-phase, where the numerical derivative changes "the sign of change", e.g dT into -dT smoothly (linearly)
+
+					//using PHFLSH to get numerical derivative ddddp_h
+					double dnew,dpnew;
+					dpnew = dp +1e-3; // change in 1 Pa
+					PHFLSHdll(dpnew,dh,dxmol,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+					ddddp_h = (dnew-dd)/1e-3;
+
+					//using PHFLSH to get numerical derivative ddddh_p
+					double dhnew;
+					dhnew = dh +(1*dwm/1000); // change in 1 J/kg*K
+					PHFLSHdll(dp,dhnew,dxmol,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+					ddddh_p = (dnew-dd)/(1*dwm/1000);
+
+
+					//using PHFLSH to get numerical derivative ddddX_ph
+					double dxmolnew[ncmax], dxkgnew[ncmax], dwmnew;
+//					XMASSdll(dxmol,dxkg,dwmnew);
+					dxkgnew[0] = dxkg[0]+1e-7;
+					dxkgnew[1] = dxkg[1]-1e-7;
+					XMOLEdll(dxkgnew,dxmolnew,dwmnew);
+					double dhin = dh*dwmnew/dwm; // this is needed because h in mass basis is constant..
+					PHFLSHdll(dp,dhin,dxmolnew,spare14,dnew,spare3,spare4,spare1,spare2,spare5,spare6,spare13,spare7,spare8,spare11,lerr,errormsg,errormessagelength);
+					ddddX_ph = (dnew*dwmnew-dd*dwm)/1e-7; // mass basis
+
+/*
+					double HA,HB,dxmolnew[ncmax],Tnew,pnew,dlow,dhigh,hlow,hhigh,h_l,h_v;
+					//double ddq,ddl_l,ddv_v,ddx[ncmax],ddy[ncmax];
+
+					ENTHALdll (dt,ddl,dxmoll,h_l);
+					ENTHALdll (dt,ddv,dxmolv,h_v);
+					HA = 0.025*(h_v-h_l)+h_l;
+					HB = 0.075*(h_v-h_l)+h_l;
+
+					double DT,DP,DX,smooth,dddT_pX,dhdT_pX,dddP_TX,dhdP_TX,dddX_pT,dhdX_pT;
+
+					DT=0.5;
+					DP=-25;
+					DX=0.002;
+
+					if (dh < HA) {
+					// DT
+						//DT=DT;
+						Tnew= dt+DT;
+							//this function does not work?
+							//(t,p,z,Dl,Dv,x,y,q,ierr,herr)
+							//TPFL2dll (Tnew,dp,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dlow = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (Tnew,ddl_l,ddx,h_l);
+							//ENTHALdll (Tnew,ddv_v,ddy,h_v);
+							//hlow = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",Tnew,dp,dxmol[0]);
+						TPFLSHdll(Tnew,dp,dxmol,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddT_pX = (dlow-dd)/(DT);
+						dhdT_pX = (hlow-dh)/(DT);
+					// DP
+						//DP=DP;
+						pnew = dp+DP;
+							//TPFL2dll (dt,pnew,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dlow = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hlow = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,pnew,dxmol[0]);
+						TPFLSHdll(dt,pnew,dxmol,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddP_TX = (dlow-dd)/(DP);
+						dhdP_TX = (hlow-dh)/(DP);
+					// DX
+						//DX = DX;
+						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix, but refprop needs sum(x)=1
+							//TPFL2dll (dt,dp,dxmolnew,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dlow = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hlow = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,dp,dxmolnew[0]);
+						TPFLSHdll(dt,dp,dxmolnew,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						double dwmnew;
+						WMOLdll(dxmolnew,dwmnew);
+						dddX_pT = (dlow/dwmnew-dd/dwm)*dwm/(DX);
+						dhdX_pT = (hlow/dwmnew-dh/dwm)*dwm/(DX);
+					} else if (dh > HB) {
+					// DT
+						DT = -DT;
+						Tnew= dt+DT;
+							//dhigh = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (Tnew,ddl_l,ddx,h_l);
+							//ENTHALdll (Tnew,ddv_v,ddy,h_v);
+							//hhigh = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",Tnew,dp,dxmol[0]);
+						TPFLSHdll(Tnew,dp,dxmol,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddT_pX = (dhigh-dd)/(DT);
+						dhdT_pX = (hhigh-dh)/(DT);
+					// DP
+						DP = -DP;
+						pnew=dp+DP;
+							//TPFL2dll (dt,pnew,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dhigh = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hhigh = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,pnew,dxmol[0]);
+						TPFLSHdll(dt,pnew,dxmol,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddP_TX = (dhigh-dd)/(DP);
+						dhdP_TX = (hhigh-dh)/(DP);
+					// DX
+						DX = -DX;
+						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+							//TPFL2dll (dt,dp,dxmolnew,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dhigh = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hhigh = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,dp,dxmolnew[0]);
+						TPFLSHdll(dt,dp,dxmolnew,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						double dwmnew;
+						WMOLdll(dxmolnew,dwmnew);
+						dddX_pT = (dhigh/dwmnew-dd/dwm)*dwm/(DX);
+						dhdX_pT = (hhigh/dwmnew-dh/dwm)*dwm/(DX);
+					} else { // something smooth
+						smooth=(dh-HA)/(HB-HA);
+					// DT
+						//DT = DT;
+						Tnew= dt+DT;
+							//TPFL2dll (Tnew,dp,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dlow = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (Tnew,ddl_l,ddx,h_l);
+							//ENTHALdll (Tnew,ddv_v,ddy,h_v);
+							//hlow = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",Tnew,dp,dxmol[0]);
+						TPFLSHdll(Tnew,dp,dxmol,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						DT=-DT;
+						Tnew= dt+DT;
+							//TPFL2dll (Tnew,dp,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dhigh = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (Tnew,ddl_l,ddx,h_l);
+							//ENTHALdll (Tnew,ddv_v,ddy,h_v);
+							//hhigh = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",Tnew,dp,dxmol[0]);
+						TPFLSHdll(Tnew,dp,dxmol,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddT_pX = (dlow-dd)/(-DT)*(1-smooth) + smooth*(dhigh-dd)/(DT);
+						dhdT_pX = (hlow-dh)/(-DT)*(1-smooth) + smooth*(hhigh-dh)/(DT);
+					// DP
+						//DP = DP;
+						pnew=dp+DP;
+							//TPFL2dll (dt,pnew,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dlow = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hlow = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,pnew,dxmol[0]);
+						TPFLSHdll(dt,pnew,dxmol,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						DP = -DP;
+						pnew=dp+DP;
+							//TPFL2dll (dt,pnew,dxmol,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dhigh = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hhigh = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,pnew,dxmol[0]);
+						TPFLSHdll(dt,pnew,dxmol,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddP_TX = (dlow-dd)/(-DP)*(1-smooth) + smooth*(dhigh-dd)/(DP);
+						dhdP_TX = (hlow-dh)/(-DP)*(1-smooth) + smooth*(hhigh-dh)/(DP);
+					// DX
+						//DX = DX;
+						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+							//TPFL2dll (dt,dp,dxmolnew,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dlow = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hlow = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,dp,dxmolnew[0]);
+						TPFLSHdll(dt,dp,dxmolnew,dlow,spare3,spare4,spare1,spare2,spare5,spare6,hlow,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						DX = -DX;
+						dxmolnew[0]=dxmol[0]+DX;  // Be carefull when comparing.. keeping X2 const is not the same as keeping z2 const ??? or..
+						dxmolnew[1]=dxmol[1]-DX; // This is wrong as you may show that x2 should be eheld constant for an ideal gas mix
+							//TPFL2dll (dt,dp,dxmolnew,ddl_l,ddv_v,ddx,ddy,ddq,lerr,errormsg,errormessagelength);
+							//dhigh = 1/(ddq/ddv_v + (1-ddq)/ddl_l);
+							//ENTHALdll (dt,ddl_l,ddx,h_l);
+							//ENTHALdll (dt,ddv_v,ddy,h_v);
+							//hhigh = ddq*h_v + (1-ddq)*h_l;
+						if (debug) printf("Calling TPFLSHdll with T=%f and P=%f. and xmol[0]=%f\n",dt,dp,dxmolnew[0]);
+						TPFLSHdll(dt,dp,dxmolnew,dhigh,spare3,spare4,spare1,spare2,spare5,spare6,hhigh,spare7,spare8,spare11,spare12,lerr,errormsg,errormessagelength);
+						dddX_pT = (dlow-dd)/(-DX)*(1-smooth) + smooth*(dhigh-dd)/(DX);
+						dhdX_pT = (hlow-dh)/(-DX)*(1-smooth) + smooth*(hhigh-dh)/(DX);
+					}
+
+					ddddh_p = dddT_pX/dhdT_pX;
+					ddddp_h = (dddP_TX*dhdT_pX-dhdP_TX*dddT_pX)/dhdT_pX;
+					ddddX_ph = -(dddT_pX*dhdX_pT-dhdT_pX*dddX_pT)/dhdT_pX;
+					ddddX_ph = ddddX_ph*dwm;
+*/
+
+				}
+
+
+			}
+
 		}
 
 	} else { // We have a problem!
@@ -1498,6 +1939,11 @@ int trns_REFPROP(double *trns, char* errormsg, int DEBUGMODE){
 
 
 int updateProps(double *props, long lerr){
+
+	double dxlkg[ncmax], dxvkg[ncmax];
+	XMASSdll(dxmoll,dxlkg,dwliq);
+	XMASSdll(dxmolv,dxvkg,dwvap);
+
 	//ASSIGN VALUES TO RETURN ARRAY
 	props[0] = lerr;//error code
 	props[1] = getP_modelica();		//pressure in Pa
@@ -1516,11 +1962,6 @@ int updateProps(double *props, long lerr){
 	props[14] = getWML_modelica();
 	props[15] = getWMV_modelica();
 
-	double dxlkg[ncmax], dxvkg[ncmax];
-
-	XMASSdll(dxmoll,dxlkg,dwliq);
-	XMASSdll(dxmolv,dxvkg,dwvap);
-
 	for (int dim=0; dim<lnc; dim++){
 		//if (debug) printf("Processing %i:%f, %f \n",dim,dxlkg[dim],dxvkg[dim]);
 		props[16+dim] = dxlkg[dim];
@@ -1530,7 +1971,7 @@ int updateProps(double *props, long lerr){
 }
 
 
-double props_REFPROP(char* what, char* statevars_in, char* fluidnames, double *ders, double *trns, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
+double props_REFPROP(char* what, char* statevars_in, char* fluidnames, double *ders, double *trns, double *props, double statevar1, double statevar2, double* x, int phase, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport, int partialDersInputChoice){
 /*Calculates thermodynamic properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
 INPUT:
 	what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -1557,6 +1998,38 @@ OUTPUT
 
 //    DEBUGMODE = 1;
 	if (DEBUGMODE) debug = true;
+	if (calcTransport) calcTrans = true;
+	//if (calcTwoPhaseNumericalDerivatives) calcTwoPhaseNumDers = true;
+	//if (calcTwoPhasePsuedoAnalyticalDerivatives) calcTwoPhasePsuedoAnalDers = true;
+	//if (statesTPX) dynstatesTPX = true;
+
+	if (partialDersInputChoice==1) PartialDersInputChoice=1;	    // no partial derivatives is computed
+	else if (partialDersInputChoice==2) PartialDersInputChoice=2;   // Numerical derivatives of density wrt. pressure, enthalpy and mass fraction is computed
+	else if (partialDersInputChoice==3) PartialDersInputChoice=3;   // Pseudo analytical derivatives of density wrt. pressure, enthalpy and mass fraction is computed (not exact, but faster)
+	else if (partialDersInputChoice==4) PartialDersInputChoice=4;	// Numerical derivatives of density and enthalpy wrt. pressure, temperature and mass fraction is computed
+	else {
+		printf("Unexpected partialDersInputChoice %i\n", partialDersInputChoice);
+		return -FAIL;
+	}
+
+//	if (partialDersInputChoice==1) {
+//		calcTwoPhaseNumDers = true;
+//		calcTwoPhasePsuedoAnalDers = false;
+//		dynstatesTPX = false;
+//	} else if (partialDersInputChoice==2) {
+//		calcTwoPhaseNumDers = false;
+//		calcTwoPhasePsuedoAnalDers = true;
+//		dynstatesTPX = false;
+//	} else if (partialDersInputChoice==3) {
+//		calcTwoPhaseNumDers = true;
+//		calcTwoPhasePsuedoAnalDers = false;
+//		dynstatesTPX = true;
+//	} else {
+//		calcTwoPhaseNumDers = false;
+//		calcTwoPhasePsuedoAnalDers = false;
+//		dynstatesTPX = false;
+//	}
+
 	std::string out 	= std::string(what).substr(0,1);
 	std::string in1 	= std::string(statevars_in).substr(0,1);
 	std::string in2 	= std::string(statevars_in).substr(1,1);
@@ -1573,6 +2046,9 @@ OUTPUT
 	 */
 	if (debug) printf("\nStarting function props_REFPROP to calculate %s.\n", out.c_str());
 
+	if (debug) printf("partial derivative choice = %i\n", partialDersInputChoice);
+
+
 	if (setFluids(rPath,fluids,errormsg) != OK) {
 		printf("Error initialising REFPROP: \"%s\"\n", errormsg);
 		return -FAIL;
@@ -1585,11 +2061,10 @@ OUTPUT
 	 * composition changes.
 	 */
 	// Convert mass-based composition to mole fractions and set molecular weight.
-	double* dxkg;
+	//double *dxkg;
+	//dxkg = (double*) calloc(ncmax,sizeof(double));
 	double dxmoltmp[ncmax];
 	double dwmtmp;
-	//dxkg = (double*) calloc(ncmax,sizeof(double));
-	//dxmoltmp = (double*) calloc(ncmax,sizeof(double));
 	dxkg = x;
 	XMOLEdll(dxkg,dxmoltmp,dwmtmp);
 	// dwm = dwm / 1000; // from g/mol to kg/mol
@@ -1648,6 +2123,15 @@ OUTPUT
 		//if (debug) printf("Checked input variable: %s\n",tmpVar.c_str());
 	}
 
+
+
+	if (lnc>1) flushConstants();
+	else flushProperties();
+	if (debug) printf("Loading a new state, flushed state. \n");
+
+
+/* //TODO Is this really nescesary? I think the possibility of dymola calling with same state twice is almost none (it will call for other states to compute, in between)..
+
 	bool knownState = isState(var1,val1,var2,val2,dxmoltmp,lnc); // dummies to force recalculation
 	double result = getValue(out);
 	bool valueExists = (result!=noValue);
@@ -1659,11 +2143,11 @@ OUTPUT
 	} else { // We have calculated it before.
 		if (valueExists) {
 			if (debug) printf("Working with old state, returning value for %s: %f.\n",out.c_str(),result);
-			updateProps(props, lerr);
+			updateProps(props, lerr);	// TODO Why only props? Are ders,trns, and props not already known?
 			return result;
 		}
 	}
-
+*/
 
 	/*
 	 * If we get to this point, the requested value was not part of an earlier
@@ -1674,7 +2158,7 @@ OUTPUT
 	// Set variables to input values
 	if ( strCompare(in1, in2) ) {
 		sprintf(errormsg,"State variable 1 is the same as state variable 2 (%s)\n",in1.c_str());
-		return -1;
+		return FAIL;
 	}
 
 	memcpy(dxmol, dxmoltmp, sizeof(dxmoltmp)) ;
@@ -1907,13 +2391,26 @@ OUTPUT
 
 	updateProps(props, lerr);
 
-	int outVal = ders_REFPROP(ders,errormsg,debug);
-	if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
 
-	outVal = trns_REFPROP(trns,errormsg,debug);
-	if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
+	if (PartialDersInputChoice!=1) {
+		int outVal = ders_REFPROP(ders,errormsg,debug);
+		if ( 0 != outVal || ders[0] != 0 ) printf("Error in derivative function, returned %i\n",outVal);
+	} else { // compute beta and kappa anyway in single-phase region
+		if (dqmol < 0. || dqmol > 1.) {
+			if (debug) printf("Calling THERM3 with T=%f and rho=%f.\n",dt,dd);
+			double spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12;
+			THERM3dll (dt,dd,dxmol,dxkappa,dbeta,spare5,spare6,spare7,spare8,spare9,spare10,spare11,spare12);
+		} else {
+			dxkappa=noValue; //TODO why is this not flushed?
+			dbeta=noValue;
+		}
+		updateDers(ders, lerr);
+	}
 
-
+	if (calcTrans) {
+		int outVal = trns_REFPROP(trns,errormsg,debug);
+		if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
+	}
 	if ( strCompare(out, "p") ) {
 		if (debug) printf("Returning %s = %f\n",out.c_str(),getP_modelica());
 		return getP_modelica();
@@ -1957,7 +2454,7 @@ OUTPUT
 //---------------------------------------------------------------------------
 
 
-double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *ders, double *trns, double *props, double statevarval, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
+double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *satprops, double statevarval, double Tsurft, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport){
 /*Calculates thermodynamic saturation properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
 INPUT:
 	what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -1978,6 +2475,7 @@ OUTPUT
 
 //    DEBUGMODE = 1;
 	if (DEBUGMODE) debug = true;
+
 	std::string out 	= std::string(what).substr(0,1);
 	std::string in1 	= std::string(statevar_in).substr(0,1);
 	std::string fluids 	= std::string(fluidnames);
@@ -1989,7 +2487,7 @@ OUTPUT
 	 * Afterwards, the fluids have been processed and the constants might
 	 * have been flushed.
 	 */
-	if (debug) printf("\nStarting function props_REFPROP to calculate %s.\n", out.c_str());
+	if (debug) printf("\nStarting function satprops_REFPROP to calculate %s.\n", out.c_str());
 
 	if (setFluids(rPath,fluids,errormsg) != OK) {
 		printf("Error initialising REFPROP: \"%s\"\n", errormsg);
@@ -2005,6 +2503,8 @@ OUTPUT
 	bool knownState = false; // dummies to force recalculation
 	bool valueExists = false;
 
+// TODO This is out-commented for props_refprop function
+// TODO - why do we want to flush properties for the setState functions here when setsat is called?
 	if (!knownState) {
 		if (lnc>1) flushConstants();
 		else flushProperties();
@@ -2023,42 +2523,62 @@ OUTPUT
 	 */
 
 	// Convert mass-based composition to mole fractions and set molecular weight.
-	double* dxkg;
+//	double* dxkg;
 	dxkg = x;
-	XMOLEdll(dxkg,dxmol,dwm);
-	// dwm = dwm / 1000; // from g/mol to kg/mol
+	XMOLEdll(dxkg,dxmolsat,dwmsat);
+	// dwm = dwm / 1000; // from g/mol to kg/mol   //keep refprop units..
 
 	// loop through possible inputs
 	if ( strCompare(in1, "p") ) {
-		dp = getP_refprop(statevarval);
+		dpsat = getP_refprop(statevarval);
 	} else if ( strCompare(in1, "t") ) {
-		dt = getT_refprop(statevarval);
-	} else if ( strCompare(in1, "d") ) {
+		dtsat = getT_refprop(statevarval);
+	}
+	/* else if ( strCompare(in1, "d") ) {
 		dd = getD_refprop(statevarval);
-	} else {
+	} */
+	 else {
 		lerr = 2;
 		sprintf(errormsg,"Unknown state variable: %s\n", in1.c_str());
 		return lerr;
 	}
 	if (debug)  printf("\nstatevar %s checked\n",in1.c_str());
 
-	long j=2;
+	long j;
 /* j--phase flag: 1 = input x is liquid composition (bubble point)
 		    2 = input x is vapor composition (dew point)
 		    3 = input x is liquid composition (freezing point)
 		    4 = input x is vapor composition (sublimation point)
 */
-	long kph = -1;
+	//long kph = -1;
 /* kph--flag specifying desired root for multi-valued inputs
            has meaning only for water at temperatures close to its triple point
           -1 = return middle root (between 0 and 4 C)
            1 = return highest temperature root (above 4 C)
            3 = return lowest temperature root (along freezing line) */
+
+	double spare1,spare2,spare3,spare4,spare10[ncmax];
+
 	if (lerr==0) {
 		if ( strCompare(in1, "t") ) {
-			SATTdll(dt,dxmol,j,dp,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			j=1;
+			SATTdll(dtsat,dxmolsat,j,dplsat,ddlsat,spare1,dxmollsat,spare10,lerr,errormsg,errormessagelength);
+			THERMdll (dtsat,ddlsat,dxmollsat,spare1,spare2,dhlsat,dslsat,dcvlsat,dcplsat,spare3,spare4);
+			j=2;
+			SATTdll(dtsat,dxmolsat,j,dpvsat,spare1,ddvsat,spare10,dxmolvsat,lerr,errormsg,errormessagelength);
+			THERMdll (dtsat,ddvsat,dxmolvsat,spare1,spare2,dhvsat,dsvsat,dcvvsat,dcpvsat,spare3,spare4);
+			dtlsat=dtsat;
+			dtvsat=dtsat;
+			//THERM (t,		rho,		x,		p,		e,			h,		s,		cv,		cp,	 	w,		hjt)
 		} else if ( strCompare(in1, "p") ) {
-			SATPdll(dp,dxmol,j,dt,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			j=1;
+			SATPdll(dpsat,dxmolsat,j,dtlsat,ddlsat,spare1,dxmollsat,spare10,lerr,errormsg,errormessagelength);
+			THERMdll (dtlsat,ddlsat,dxmollsat,dplsat,spare2,dhlsat,dslsat,dcvlsat,dcplsat,spare3,spare4);
+			j=2;
+			SATPdll(dpsat,dxmolsat,j,dtvsat,spare1,ddvsat,spare10,dxmolvsat,lerr,errormsg,errormessagelength);
+			THERMdll (dtvsat,ddvsat,dxmolvsat,dpvsat,spare2,dhvsat,dsvsat,dcvvsat,dcpvsat,spare3,spare4);
+			//dplsat=dpsat;
+			//dpvsat=dpsat;
 			switch(lerr){
 				case 2:
 					strcpy(errormsg,"P < Ptp");
@@ -2068,7 +2588,9 @@ OUTPUT
 					break;
 			}
 			//sprintf(errormsg,"p=%f, h=%f",p ,statevar2);
-		} else if ( strCompare(in1, "d") ) {
+		}
+		/*
+		 else if ( strCompare(in1, "d") ) {
 			SATDdll(dd,dxmol,j,kph,dt,dp,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
 			switch(lerr){
 				case 2:
@@ -2076,6 +2598,7 @@ OUTPUT
 					break;
 			}
 		}
+		*/
 	}
 
 	switch(lerr){
@@ -2165,46 +2688,63 @@ OUTPUT
 			break;
 	}
 
-	//ASSIGN VALUES TO RETURN ARRAY
-	props[0] = lerr;//error code
-	props[1] = getP_modelica();		//pressure in kPa->Pa
-	props[2] = getT_modelica();		//Temperature in K
-	props[3] = getWM_modelica();	//molecular weight
-	props[4] = getD_modelica();		//density
-	props[5] = getDL_modelica();	//density of liquid phase
-	props[6] = getDV_modelica();	//density of liquid phase
-	props[7] = 0;
-	props[8] = 0;	//inner energy
-	props[9] = 0;	//specific enthalpy
-	props[10] = 0;	//specific entropy
-	props[11] = 0;
-	props[12] = 0;
-	props[13] = 0; //speed of sound
-	props[14] = getWML_modelica();
-	props[15] = getWMV_modelica();
+
+
+
+	double dsigma;
+
+ 	if (calcTransport) {
+ 		if ( strCompare(in1, "t") ) {
+ 			SURTENdll (dtsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,dsigma,lerr,errormsg,errormessagelength);
+ 		} else if ( strCompare(in1, "p") ) {
+ 			SURFTdll (Tsurft,ddlsat,dxmollsat,dsigma,lerr,errormsg,errormessagelength);
+ 		}
+	} else {
+		dsigma =0;
+	}
+
 
 	double dxlkg[ncmax], dxvkg[ncmax];
+	XMASSdll(dxmollsat,dxlkg,dwlsat);
+	XMASSdll(dxmolvsat,dxvkg,dwvsat);
 
-	XMASSdll(dxmoll,dxlkg,dwliq);
-	XMASSdll(dxmolv,dxvkg,dwvap);
+	//ASSIGN VALUES TO RETURN ARRAY
+	satprops[0] = lerr;//error code
+	satprops[1] = dtlsat;				//Temperature in K
+	satprops[2] = dtvsat;				//Temperature in K
+	satprops[3] = dplsat*1000;			//pressure in kPa->Pa
+	satprops[4] = dpvsat*1000;			//pressure in kPa->Pa
+	satprops[5] = ddlsat*dwlsat;		//density of liquid phase mol/L ->g/L (kg/m3)
+	satprops[6] = ddvsat*dwvsat;		//density of vapor phase mol/L ->g/L (kg/m3)
+	satprops[7] = dhlsat/dwlsat*1000;	//enthalpy of liquid J/mol -> J/g e-3 -> J/kg
+	satprops[8] = dhvsat/dwvsat*1000;	//enthalpy of vapor J/mol -> J/g e-3 -> J/kg
+	satprops[9] = dslsat/dwlsat*1000;	//entropy of liquid J/molK -> J/gK e-3 -> J/kgK
+	satprops[10] = dsvsat/dwvsat*1000;	//entropy of vapor J/molK -> J/gK e-3 -> J/kgK
+	satprops[11] = dsigma; 				//surface tension
 
+//	satprops[12] = dwlsat/1000;			//molecular weight g/mol -> kg/mol
+//	satprops[13] = dwvsat/1000;			//molecular weight g/mol -> kg/mol
 	for (int ii=0;ii<lnc;ii++){
-		props[16+ii] = dxlkg[ii];
-		props[16+lnc+ii] = dxvkg[ii];
+		satprops[12+ii] = dxkg[ii];
+//		satprops[14+lnc+ii] = dxlkg[ii];
+//		satprops[14+lnc+lnc+ii] = dxvkg[ii];
 	}
 
 	if (debug) printf("Returning %s\n",out.c_str());
 
 	if ( strCompare(out, "p") ) {
-		return getP_modelica();
+		return dpsat*1000;
 	} else if ( strCompare(out, "t") ) {
-		return getT_modelica();
-	} else if ( strCompare(out, "m") ) {
+		return dtsat;
+	}
+	/* else if ( strCompare(out, "m") ) {
 		return getWM_modelica();
 	} else if ( strCompare(out, "d") ) {
 		return getD_modelica();
-	} else {
-		props[0] = 2.0;
+	}
+	*/
+	 else {
+		satprops[0] = 2.0;
 		sprintf(errormsg,"Cannot return variable %s in saturation calculation", out.c_str());
 		return -1.0;
 	}

@@ -1,7 +1,10 @@
 within ;
 package REFPROP2Modelica 
-  constant String REFPROP_PATH = "C:\\Program Files\\REFPROP";
+  constant String REFPROP_PATH = "C:\\Program Files (x86)\\REFPROP";
   // constant String REFPROP_PATH = "/opt/refprop";
+
+
+
 
 
   annotation(version = "0.2", uses(Modelica(version = "3.2")), Documentation(info="<html>

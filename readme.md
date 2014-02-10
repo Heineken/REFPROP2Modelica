@@ -1,5 +1,5 @@
 #Welcome to REFPROP2Modelica!
-This piece of software enables the user to access the Refprop fluid property database from within Modelica. Even though the code base is not very mature yet, this package seems to be the only solution to access properties of mixtures from within Modelica on both Windows and Linux systems. The aim is to develop wrapper classes and integrate them with the `Media` framework inside Modelica. It has only been tested with Dymola sofar. 
+This piece of software enables the user to access the Refprop fluid property database from within Modelica. Even though the code base is not very mature yet, this package seems to be the only solution to access properties of mixtures from within Modelica on both Windows and Linux systems. The aim is to develop wrapper classes and integrate them with the `Media` framework inside Modelica. It has only been tested with Dymola so far. 
 
 ## Installation Instructions
 You can use the provided makefiles to compile and install the wrapper. The process should be straightforward. You can get the latest release from https://github.com/jowr/REFPROP2Modelica/releases
@@ -25,7 +25,6 @@ For installing on a Linux machine, please follow these instructions
 5.  If you experience problems with older versions of this package, you can run `sudo make fixit` to create additonal aliases. This compiles and installs a dynamic library on your system. 
 6.  ... and finally to remove the files from your system, please use `sudo make uninstall`.
 
-
 ## General Remarks
 Please note that you need a working and licensed copy of Refprop in order to use the software provided here. 
 This is not a replacement for Refprop, only a wrapper to use it with Modelica.
@@ -36,3 +35,29 @@ If you are interested in this kind of software, you might also want to consider 
 1.  https://github.com/Heineken/REFPROP2Modelica (The original version of this library)
 2.  https://github.com/thorade/HelmholtzMedia (A Modelica implementation the Helmholtz functions)
 3.  http://coolprop.sourceforge.net/ (A free fluid property library also based on Helmholtz formulation)
+
+# Usage notes on partial derivatives
+There are four ways to compute partial derivatives determined by "partialDersInputChoice", an input the setState_phX() and setState_pTX() functions:
+
+1: none (default)
+
+2: partial derivatives of d wrt p,h,X
+In two-phase region: numerical differentiation for all derivatives
+In single phase region: dddX is numerical and others are analytical
+
+3: partial derivatives of d wrt p,h,X
+In two-phase region: pseudo analytical (similar procedure as pure fluid - they give almost same result as method 2, and with less CPU effort).
+In single phase region: dddX is numerical and others are analytical
+
+4: partial derivatives of d and h wrt p,T,X
+In two-phase region: numerical differentiation for all derivatives
+In single phase region: dddX is numerical and others are analytical
+
+The second and fourth methods compare exactly with stepping forward in u,d,X (the baseline with most CPU effort, due to tedious iteration in property functions at every time step, u,d,X -> T,p,h etc.).
+Method 4 is guicker in the two-phase region compared to method 2, because T and P are equilibrium quantities, and thus the most typical flash function..
+Method 3 is fastest, but does not give correct dynamics and will cause mass convervation to fail.
+
+Note that the dddX derivative is the difference in dddX1|X2=const-dddX2|X1=const
+
+The partials works only for binary mixtures and have only been tested for NH3/water..
+See tester package..

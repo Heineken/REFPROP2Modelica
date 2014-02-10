@@ -1,7 +1,7 @@
 within REFPROP2Modelica.Testers;
 model PropsMixtureNH3H2O
 package Medium = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium (
-                               final substanceNames={"ammonia","water"},
+                               final substanceNames={"ammoniaL","water"},
                                inputChoice=REFPROP2Modelica.Interfaces.MixtureInputChoice.dTX);
 
   Medium.ThermodynamicState state;
@@ -12,6 +12,15 @@ package Medium = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium (
 
   Modelica.SIunits.AbsolutePressure p;
   Real q;
+
+  Medium.SaturationProperties sat = REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.setSat(
+                                                     p,X);
+
+  Medium.SpecificEnthalpy hl = Medium.bubbleEnthalpy(sat);
+  Medium.SpecificEnthalpy hv = Medium.dewEnthalpy(sat);
+
+  Medium.Density dl = Medium.bubbleDensity(sat);
+  Medium.Density dv = Medium.dewDensity(sat);
 
 protected
   Modelica.SIunits.Temperature T_init = 400;
@@ -25,6 +34,8 @@ equation
   X[2] = 1 - X[1];
   T = 350 + 100 * time;
   state = Medium.setState_dTX(d,T,X);
+
   p = Medium.pressure(state);
   q = Medium.vapourQuality(state);
+
 end PropsMixtureNH3H2O;

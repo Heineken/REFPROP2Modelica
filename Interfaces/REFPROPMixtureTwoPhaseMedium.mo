@@ -16,6 +16,18 @@ partial package REFPROPMixtureTwoPhaseMedium
     "Merge all substance names to one string for refprop library";
       constant Boolean debugmode=false
     "print messages in functions and wrapper library if run from command line";
+
+  type PartialDersInputChoice = enumeration(
+      none "no partial derivatives is computed",
+      phX_numeric
+        "Numerical derivatives of density wrt. pressure, enthalpy and mass fraction is computed",
+
+      phX_pseudoanalytic
+        "Pseudo analytical derivatives of density wrt. pressure, enthalpy and mass fraction is computed (not exact, but faster)",
+
+      pTX_numeric
+        "Numerical derivatives of density and enthalpy wrt. pressure, temperature and mass fraction is computed");
+
   constant FluidConstants[nS] rpConstants(
     each chemicalFormula="REFPROP Medium",
     each structureFormula="REFPROP Medium",
@@ -35,23 +47,18 @@ partial package REFPROPMixtureTwoPhaseMedium
 //import REFPROP2Modelica.Interfaces.MixtureInputChoice;
 //constant MixtureInputChoice explicitVars = InputChoice.phX
 //    "set of variables the model is explicit for, may be set to all combinations of p,h,T,d,s,d, REFPROP works internally with dT";
-
 //   inputChoice = explicitVars,
 //"mediumName is being checked for consistency at flowports"
+
   partial function partialREFPROP "Declaration of array props"
   //used by getSatProp_REFPROP_check() and getProp_REFPROP_check()
     extends Modelica.Icons.Function;
   protected
-    Real[16 + 2*nX] props;
-    Real[21] ders;
+    Real[18 + 2*nX] props;
+    Real[12] ders;
     Real[3] trns;
     String errormsg=StrJoin(fill("xxxx", 64), "")
       "Allocating memory, string will be written by C function, doesn't work for strings longer than 40 bytes";
-  // initial algorithm
-  //   props :=fill(1, (16 + 2*nX));
-  //   ders  :=fill(1, 19);
-  //   trns  :=fill(1, 3);
-
   end partialREFPROP;
 
   function getProp_REFPROP
@@ -66,10 +73,12 @@ partial package REFPROPMixtureTwoPhaseMedium
     input Real statevar2;
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
     input String errormsg;
   //    input Integer debug=1;
     output Real val;
-  external"C" val=  props_REFPROP(
+  external "C" val=  props_REFPROP(
         what2calc,
         statevars,
         fluidnames,
@@ -82,7 +91,9 @@ partial package REFPROPMixtureTwoPhaseMedium
         phase,
         REFPROP_PATH,
         errormsg,
-        debugmode);
+        debugmode,
+        calcTransport,
+        partialDersInputChoice);
     annotation (Include="#include <refprop_wrapper.h>", Library="refprop_wrapper");
   end getProp_REFPROP;
 
@@ -100,6 +111,7 @@ partial package REFPROPMixtureTwoPhaseMedium
   algorithm
     assert(size(X, 1) > 0, "The mass fraction vector must have at least 1 element.");
   //   Modelica.Utilities.Streams.print("Calc "+what2calc);
+
     val := getProp_REFPROP(
         what2calc,
         statevars,
@@ -112,20 +124,36 @@ partial package REFPROPMixtureTwoPhaseMedium
         X,
         phase,
         errormsg) "just passing through";
+
   //   Modelica.Utilities.Streams.print("ERR("+String(props[1])+"):"+errormsg);
     assert(props[1] == 0, "Errorcode " + String(props[1]) + " in REFPROP wrapper function:\n"
        + errormsg + "\n");
   end getProp_REFPROP_check;
+
+  partial function partialSatREFPROP "Declaration of array props"
+  //used by getSatProp_REFPROP_check() and getProp_REFPROP_check()
+    extends Modelica.Icons.Function;
+  protected
+    Real[12 + 1*nX] satprops;
+    String errormsg=StrJoin(fill("xxxx", 64), "")
+      "Allocating memory, string will be written by C function, doesn't work for strings longer than 40 bytes";
+  // initial algorithm
+  //   props :=fill(1, (16 + 2*nX));
+  //   ders  :=fill(1, 19);
+  //   trns  :=fill(1, 3);
+
+  end partialSatREFPROP;
 
   function getSatProp_REFPROP
     "calls C function with property identifier & returns single property"
     input String what2calc;
     input String statevar;
     input String fluidnames;
-    input Real[:] ders;
-    input Real[:] trns;
-    input Real[:] props;
+    input Real[:] satprops;
     input Real statevarval;
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
+    input Boolean calcTransport=false;
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     input String errormsg;
     output Real val;
@@ -134,24 +162,26 @@ partial package REFPROPMixtureTwoPhaseMedium
         what2calc,
         statevar,
         fluidnames,
-        ders,
-        trns,
-        props,
+        satprops,
         statevarval,
+        Tsurft,
         X,
         REFPROP_PATH,
         errormsg,
-        debugmode);
+        debugmode,
+        calcTransport);
     annotation (Include="#include <refprop_wrapper.h>", Library="refprop_wrapper");
   end getSatProp_REFPROP;
 
   function getSatProp_REFPROP_check
     "wrapper for getSatProp_REFPROP returning 1 property value with error check"
-    extends partialREFPROP;
+    extends partialSatREFPROP;
     input String what2calc;
     input String statevar;
   //   input String fluidnames;
     input Real statevarval;
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     output Real val;
   algorithm
@@ -160,87 +190,77 @@ partial package REFPROPMixtureTwoPhaseMedium
         what2calc,
         statevar,
         fluidnames,
-        ders,
-        trns,
-        props,
+        satprops,
         statevarval,
+        Tsurft,
         X,
         errormsg) "just passing through";
   //Error string decoding in wrapper-c-function
-    assert(props[1] == 0 or props[1] == 141, "Errorcode " + String(props[1]) + " in REFPROP wrapper function:\n"
+    assert(satprops[1] == 0 or satprops[1] == 141, "Errorcode " + String(satprops[1]) + " in REFPROP wrapper function:\n"
        + errormsg + "\n");
-    if props[1] == 141 then
+    if satprops[1] == 141 then
       Modelica.Utilities.Streams.print("Saturation properties cannot be calculated, because P > p_crit!...");
       val := -999;
     end if;
   end getSatProp_REFPROP_check;
 
+redeclare record extends SaturationProperties
+    "Saturation properties in two-phase region"
+end SaturationProperties;
+
 redeclare record extends ThermodynamicState
     "Adapt this record to the returned values from one REFPROP call."
 
-//  Density d_l "density of liquid phase";
-//  Density d_g "density of gaseous phase";
+  Density d_l "density of liquid phase";
+  Density d_g "density of gaseous phase";
 //  MassFraction x "void fraction";
 // SpecificInternalEnergy u "Specific energy";
 
 // MolarMass MM_l "Molar Mass of liquid phase";
 //  MolarMass MM_g "Molar Mass of gas phase";
-//  MassFraction X_l[nX]
-//    "Composition of liquid phase (Mass fractions  in kg/kg)";
-//  MassFraction X_g[nX] "Composition of gas phase (Mass fractions  in kg/kg)";
+  MassFraction X_l[nX] "Composition of liquid phase (Mass fractions  in kg/kg)";
+  MassFraction X_g[nX] "Composition of gas phase (Mass fractions  in kg/kg)";
 //    DerDensityByEnthalpy ddhp
 //    "derivative of density wrt enthalpy at constant pressure";
 //    DerDensityByPressure ddph
 //    "derivative of density wrt pressure at constant enthalpy";
 
-  Real hjt "isenthalpic Joule-Thompson coefficient [K/Pa]";
-  Modelica.SIunits.SpecificHelmholtzFreeEnergy a "Helmholtz energy";
-  Modelica.SIunits.SpecificGibbsFreeEnergy f "Gibbs free energy";
+//  Real hjt "isenthalpic Joule-Thompson coefficient [K/Pa]";
+//  Modelica.SIunits.SpecificHelmholtzFreeEnergy a "Helmholtz energy";
+//  Modelica.SIunits.SpecificGibbsFreeEnergy f "Gibbs free energy";
   Modelica.SIunits.IsothermalCompressibility kappa "isothermal compressibility";
   IsobaricExpansionCoefficient beta
       "volume expansivity (= 1/V dV/dT = -1/rho dD/dT)";
 
-  DerPressureByDensity dpdrho_T;
-  DerDerPressureByDensityByDensity d2pdrho2_T;
-  DerPressureByTemperature dpdT_rho;
-  DerDensityByTemperature drhodT_p;
-  DerDensityByPressure drhodp_T;
-  DerDerPressureByTemperatureByTemperature d2pdT2_rho;
-  DerDerPressureByTemperatureByDensity d2pdTdrho;
-  DerEnthalpyByTemperature dhdT_rho "dH/dT at constant density";
-  DerEnthalpyByTemperature dhdT_p "dH/dT at constant pressure";
-  DerEnthalpyByDensity dhdrho_T "dH/drho at constant temperature";
-  DerEnthalpyByDensity dhdrho_p "dH/drho at constant pressure";
-  DerEnthalpyByPressure dhdp_T "dH/dP at constant temperature";
-  DerEnthalpyByPressure dhdp_rho "dH/dP at constant density";
+//   DerPressureByDensity dpdrho_T;
+//   DerDerPressureByDensityByDensity d2pdrho2_T;
+//   DerPressureByTemperature dpdT_rho;
+//   DerDensityByTemperature drhodT_p;
+//   DerDensityByPressure drhodp_T;
+//   DerDerPressureByTemperatureByTemperature d2pdT2_rho;
+//   DerDerPressureByTemperatureByDensity d2pdTdrho;
+//   DerEnthalpyByTemperature dhdT_rho "dH/dT at constant density";
+//   DerEnthalpyByTemperature dhdT_p "dH/dT at constant pressure";
+//   DerEnthalpyByDensity dhdrho_T "dH/drho at constant temperature";
+//   DerEnthalpyByDensity dhdrho_p "dH/drho at constant pressure";
+//   DerEnthalpyByPressure dhdp_T "dH/dP at constant temperature";
+//   DerEnthalpyByPressure dhdp_rho "dH/dP at constant density";
 
-  DerDensityByEnthalpy drhodh_p "drho/dh at constant pressure";
-  DerDensityByPressure drhodp_h "drho/dp at constant enthalpy";
+  Real dddX_ph;
+  DerDensityByEnthalpy dddh_pX "drho/dh at constant pressure";
+  DerDensityByPressure dddp_hX "drho/dp at constant enthalpy";
 
   DynamicViscosity eta "dynamic viscosity";
   ThermalConductivity lambda "thermal conductivity";
 
-end ThermodynamicState;
+  DerDensityByTemperature dddT_pX;
+  DerDensityByPressure dddp_TX;
+  DerEnthalpyByPressure dhdp_TX;
+  DerEnthalpyByTemperature dhdT_pX;
+  Real dddX_pT;
+  Real dhdX_pT;
 
-// redeclare record extends ThermodynamicState
-//     "a selection of variables that uniquely defines the thermodynamic state"
-// /*  AbsolutePressure p "Absolute pressure of medium";
-//   Temperature T "Temperature of medium";
-//   MassFraction X[nX] "Composition (Mass fractions  in kg/kg)";*/
-//   MolarMass MM "Molar Mass of the whole mixture";
-//   Density d(start=300) "density";
-//   SpecificEnergy u "Specific energy";
-//   SpecificEnthalpy h "Specific enthalpy";
-//   SpecificEntropy s "Specific entropy";
-//   Modelica.SIunits.SpecificHeatCapacityAtConstantPressure cp;
-//   Modelica.SIunits.SpecificHeatCapacityAtConstantVolume cv;
-//   VelocityOfSound c;
-//   MolarMass MM_l "Molar Mass of liquid phase";
-//   MolarMass MM_g "Molar Mass of gas phase";
-//   MassFraction X_l[nX] "Composition of liquid phase (Mass fractions  in kg/kg)";
-//   MassFraction X_g[nX] "Composition of gas phase (Mass fractions  in kg/kg)";
-// //  Real GVF "Gas Void Fraction";
-// end ThermodynamicState;
+end ThermodynamicState;
 
 //   redeclare model extends BaseProperties "Base properties of medium"
 //   equation
@@ -345,13 +365,9 @@ end ThermodynamicState;
     input Real statevar2;
     input Modelica.SIunits.MassFraction X[:]=reference_X "Mass fractions";
     input FixedPhase phase "2 for two-phase, 1 for one-phase, 0 if not known";
-  //  input String fluidnames;
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
     output ThermodynamicState state "thermodynamic state record";
-  //  Real[:] props=getProps_REFPROP_check(statevars, fluidnames,statevar1, statevar2, X, phase);
-  /*protected 
-  Real[16+2*nX] props;
-  String errormsg=StrJoin(fill("xxxx",64),"") 
-    "Allocating memory, string will be written by C function";*/
   algorithm
     assert(size(X, 1) > 0, "The mass fraction vector must have at least 1 element.");
     getProp_REFPROP(
@@ -365,6 +381,8 @@ end ThermodynamicState;
         statevar2,
         X,
         phase,
+        partialDersInputChoice,
+        calcTransport,
         errormsg);
     assert(props[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
   /*  If q = 990 Then Modelica.Utilities.Streams.print(msg+String(z)) end if;
@@ -378,34 +396,30 @@ end ThermodynamicState;
         X=X,
         molarMass=props[4],
         d=props[5],
+        d_l=props[6],
+        d_g=props[7],
         h=props[10],
         s=props[11],
         cv=props[12],
         cp=props[13],
         w=props[14],
         phase=if (props[8] > 0 and props[8] < 1) then 2 else 1,
-        hjt=ders[2],
-        a=ders[3],
-        f=ders[4],
-        kappa=ders[5],
-        beta=ders[6],
-        dpdrho_T=ders[7],
-        d2pdrho2_T=ders[8],
-        dpdT_rho=ders[9],
-        drhodT_p=ders[10],
-        drhodp_T=ders[11],
-        d2pdT2_rho=ders[12],
-        d2pdTdrho=ders[13],
-        dhdT_rho=ders[14],
-        dhdT_p=ders[15],
-        dhdrho_T=ders[16],
-        dhdrho_p=ders[17],
-        dhdp_T=ders[18],
-        dhdp_rho=ders[19],
-        drhodh_p=ders[20],
-        drhodp_h=ders[21],
+        q=if (props[8] < 0) then 0 elseif (props[8] > 1) then 1 else props[8],
+        kappa=ders[2],
+        beta=ders[3],
+        dddX_ph=ders[4],
+        dddh_pX=ders[5],
+        dddp_hX=ders[6],
+        dddp_TX=ders[7],
+        dddT_pX=ders[8],
+        dddX_pT=ders[9],
+        dhdp_TX=ders[10],
+        dhdT_pX=ders[11],
+        dhdX_pT=ders[12],
         eta=trns[2],
-        lambda=trns[3]);
+        lambda=trns[3],
+        X_l={props[16+i] for i in 1:nX},
+        X_g={props[16+nX+i] for i in 1:nX});
 
     if debugmode then
       Modelica.Utilities.Streams.print("Running state set to p,T,d,h,s ("
@@ -516,6 +530,9 @@ end ThermodynamicState;
   redeclare replaceable function extends setState_phX
     "Calculates medium properties from p,h,X"
   //      input String fluidnames;
+
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
   algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running setState_phX(" + String(p) + ","
@@ -526,8 +543,62 @@ end ThermodynamicState;
         p,
         h,
         X,
-        phase) ",fluidnames)";
+        phase,
+        partialDersInputChoice,
+        calcTransport) ",fluidnames)";
   end setState_phX;
+
+  redeclare function extends setBubbleState
+    "set the thermodynamic state on the bubble line"
+  algorithm
+  //     if debugmode then
+  //       Modelica.Utilities.Streams.print("Running setState_phX(" + String(sat.psat) + ","
+  //          + String(bubbleEnthalpy(sat)) + ",X)...");
+  //     end if;
+  //     state := setState(
+  //         "pq",
+  //         sat.psat,
+  //         0,
+  //         sat.X,
+  //         phase) ",fluidnames)";
+      if debugmode then
+        Modelica.Utilities.Streams.print("Running setState_dTX(" + String(sat.dv) + ","
+           + String(sat.Tv) + ",X)...");
+      end if;
+      state := setState(
+          "dT",
+          sat.dl,
+          sat.Tl,
+          sat.X,
+          phase);
+
+  end setBubbleState;
+
+  redeclare function extends setDewState
+    "set the thermodynamic state on the bubble line"
+  algorithm
+  //     if debugmode then
+  //       Modelica.Utilities.Streams.print("Running setState_phX(" + String(sat.psat) + ","
+  //          + String(dewEnthalpy(sat)) + ",X)...");
+  //     end if;
+  //     state := setState(
+  //         "pq",
+  //         sat.psat,
+  //         1,
+  //         sat.X,
+  //         phase) ",fluidnames)";
+      if debugmode then
+        Modelica.Utilities.Streams.print("Running setState_dTX(" + String(sat.dv) + ","
+           + String(sat.Tv) + ",X)...");
+      end if;
+      state := setState(
+          "dT",
+          sat.dv,
+          sat.Tv,
+          sat.X,
+          phase);
+
+  end setDewState;
 
   function setState_pqX "Calculates medium properties from p,q,X"
     extends Modelica.Icons.Function;
@@ -567,6 +638,9 @@ end ThermodynamicState;
   end setState_psX;
 
   redeclare replaceable partial function extends setState_pTX
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
+
   algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running setState_pTX(" + String(p) + ","
@@ -577,7 +651,9 @@ end ThermodynamicState;
         p,
         T,
         X,
-        phase) ",fluidnames)";
+        phase,
+        partialDersInputChoice,
+        calcTransport); //",fluidnames)";
   end setState_pTX;
 
   function setState_ThX "Calculates medium properties from T,h,X"
@@ -622,22 +698,89 @@ end ThermodynamicState;
         phase) ",fluidnames)";
   end setState_TsX;
 
+  function setSat "calculate saturation property record"
+    extends partialSatREFPROP;
+    input String statevar;
+    input Real statevarval;
+    input Modelica.SIunits.MassFraction X[:] "Mass fractions";
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+    assert(size(X, 1) > 0, "The mass fraction vector must have at least 1 element.");
+    getSatProp_REFPROP(
+        "p",
+        statevar,
+        fluidnames,
+        satprops,
+        statevarval,
+        Tsurft,
+        calcTransport,
+        X,
+        errormsg);
+    assert(satprops[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
+
+    sat := SaturationProperties(
+    psat=99999,
+    Tsat=99999,
+        Tl=satprops[2],
+        Tv=satprops[3],
+        pl=satprops[4],
+        pv=satprops[5],
+        dl=satprops[6],
+        dv=satprops[7],
+        hl=satprops[8],
+        hv=satprops[9],
+        sl=satprops[10],
+        sv=satprops[11],
+        sigma=satprops[12],
+        X=  satprops[13:13+nX-1]);
+  end setSat;
+
+  redeclare replaceable function setSat_pX
+    "Return saturation property record from pressure"
+    extends Modelica.Icons.Function;
+    input AbsolutePressure p "pressure";
+    input MassFraction X[nX] "Mass fractions";
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+      sat := setSat(
+        "p",
+        p,
+        X,
+        Tsurft,
+        calcTransport);
+  end setSat_pX;
+
+  redeclare replaceable function setSat_TX
+    "Return saturation property record from temperature"
+    extends Modelica.Icons.Function;
+    input Temperature T "temperature";
+    input MassFraction X[nX] "Mass fractions";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+        sat := setSat(
+        "t",
+        T,
+        X,
+        calcTransport=calcTransport);
+  end setSat_TX;
+
   redeclare function extends saturationPressure
   algorithm
-    p := getSatProp_REFPROP_check(
-        "p",
-        "T",
-        T,
-        X);
+  //  this function does not make sense, what pressure do you want?
+  // use setSat instead
   end saturationPressure;
 
   redeclare function extends saturationTemperature
   algorithm
-    T := getSatProp_REFPROP_check(
-        "T",
-        "p",
-        p,
-        X);
+  //  this function does not make sense, what temperature do you want?
+  // use setSat instead
   end saturationTemperature;
 
 //  redeclare function extends specificEntropy
@@ -655,73 +798,37 @@ end ThermodynamicState;
   redeclare function extends dewEnthalpy "dew curve specific enthalpy"
     extends Modelica.Icons.Function;
   algorithm
-    hv := getProp_REFPROP_check(
-        "h",
-        "pq",
-        sat.psat,
-        1,
-        sat.X,
-        1);
+    hv:=sat.hv;
   end dewEnthalpy;
 
   redeclare function extends dewEntropy "dew curve specific entropy"
     extends Modelica.Icons.Function;
   algorithm
-    sv := getProp_REFPROP_check(
-      "s",
-      "pq",
-      sat.psat,
-      1,
-      sat.X,
-      1);
+    sv:=sat.sv;
   end dewEntropy;
 
   redeclare function extends dewDensity "dew curve specific density"
     extends Modelica.Icons.Function;
   algorithm
-    dv := getProp_REFPROP_check(
-      "d",
-      "pq",
-      sat.psat,
-      1,
-      sat.X,
-      1);
+    dv:=sat.dv;
   end dewDensity;
 
   redeclare function extends bubbleEnthalpy "boiling curve specific enthalpy"
     extends Modelica.Icons.Function;
   algorithm
-    hl := getProp_REFPROP_check(
-      "h",
-      "pq",
-      sat.psat,
-      0,
-      sat.X,
-      1);
+    hl:=sat.hl;
   end bubbleEnthalpy;
 
   redeclare function extends bubbleEntropy "boiling curve specific entropy"
     extends Modelica.Icons.Function;
   algorithm
-    sl := getProp_REFPROP_check(
-      "s",
-      "pq",
-      sat.psat,
-      0,
-      sat.X,
-      1);
+    sl:=sat.sl;
   end bubbleEntropy;
 
   redeclare function extends bubbleDensity "boiling curve specific density"
     extends Modelica.Icons.Function;
   algorithm
-    dl := getProp_REFPROP_check(
-      "d",
-      "pq",
-      sat.psat,
-      0,
-      sat.X,
-      1);
+    dl:=sat.dl;
   end bubbleDensity;
 
   redeclare replaceable function extends molarMass
@@ -781,7 +888,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running density_hsX(" + String(h) + "," +
         String(s) + ",X)");
     end if;
-    d := getProp_REFPROP_check(
+    d := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "d",
         "hs",
         h,
@@ -811,7 +918,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running density_pqX(" + String(p) + "," +
         String(q) + ",X)");
     end if;
-    d := getProp_REFPROP_check(
+    d := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "d",
         "pq",
         p,
@@ -834,7 +941,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running density_psX(" + String(p) + "," +
         String(s) + ",X)");
     end if;
-    d := getProp_REFPROP_check(
+    d := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "d",
         "ps",
         p,
@@ -865,7 +972,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running density_pTX(" + String(p) + "," +
         String(T) + ",X)...");
     end if;
-    d := getProp_REFPROP_check(
+    d := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "d",
         "pT",
         p,
@@ -895,7 +1002,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running density_ThX(" + String(T) + "," +
         String(h) + ",X)");
     end if;
-    d := getProp_REFPROP_check(
+    d := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "d",
         "Th",
         T,
@@ -925,7 +1032,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running density_TsX(" + String(T) + "," +
         String(s) + ",X)");
     end if;
-    d := getProp_REFPROP_check(
+    d := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "d",
         "Ts",
         T,
@@ -950,7 +1057,7 @@ end ThermodynamicState;
     input ThermodynamicState state "thermodynamic state record";
     output DerDensityByPressure ddph "Density derivative w.r.t. pressure";
   algorithm
-  ddph := state.drhodp_h;
+  ddph := state.dddp_hX;
   end density_derp_h;
 
   redeclare function density_derh_p
@@ -960,7 +1067,7 @@ end ThermodynamicState;
     output DerDensityByEnthalpy ddhp
       "Density derivative w.r.t. specific enthalpy";
   algorithm
-  ddhp := state.drhodh_p;
+  ddhp := state.dddh_pX;
   end density_derh_p;
 
   redeclare function density_derp_T
@@ -969,7 +1076,7 @@ end ThermodynamicState;
     input ThermodynamicState state "thermodynamic state record";
     output DerDensityByPressure ddpT "Density derivative w.r.t. pressure";
   algorithm
-  ddpT := state.drhodp_T;
+  ddpT := state.dddp_TX;
   end density_derp_T;
 
   redeclare function density_derT_p
@@ -978,17 +1085,18 @@ end ThermodynamicState;
     input ThermodynamicState state "thermodynamic state record";
     output DerDensityByTemperature ddTp "Density derivative w.r.t. temperature";
   algorithm
-  ddTp := state.drhodT_p;
+  ddTp := state.dddT_pX;
   end density_derT_p;
 
-//   redeclare function density_derX
-//     "Return density derivative w.r.t. mass fraction"
-//     extends Modelica.Icons.Function;
-//     input ThermodynamicState state "thermodynamic state record";
-//     output Density[nX] dddX "Derivative of density w.r.t. mass fraction";
-// algorithm
-//   dddX :=
-//   end density_derX;
+   redeclare function density_derX
+    "Return density derivative w.r.t. mass fraction"
+     extends Modelica.Icons.Function;
+     input ThermodynamicState state "thermodynamic state record";
+     output Density[nX] dddX "Derivative of density w.r.t. mass fraction";
+   algorithm
+   dddX[1] := state.dddX_ph;
+   dddX[2:nX] := fill(0,nX-1);
+   end density_derX;
 
   function pressure_dsX "calls REFPROP-Wrapper, returns pressure"
     extends Modelica.Icons.Function;
@@ -1002,7 +1110,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_dsX(" + String(d) + ","
          + String(s) + ",X)");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "ds",
         d,
@@ -1032,7 +1140,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_dTX(" + String(d) + ","
          + String(T) + ",X)");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "dT",
         d,
@@ -1062,7 +1170,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_hdX(" + String(h) + ","
          + String(d) + ",X)");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "hd",
         h,
@@ -1092,7 +1200,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_hsX(" + String(h) + ","
          + String(s) + ",X)");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "hs",
         h,
@@ -1122,7 +1230,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_ThX(" + String(T) + ","
          + String(h) + ",X)...");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "Th",
         T,
@@ -1153,7 +1261,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_TqX(" + String(T) + ","
          + String(q) + ",X)");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "Tq",
         T,
@@ -1179,7 +1287,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running pressure_TsX(" + String(T) + ","
          + String(s) + ",X)...");
     end if;
-    p := getProp_REFPROP_check(
+    p := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "p",
         "Ts",
         T,
@@ -1216,7 +1324,7 @@ end ThermodynamicState;
          d) + "," + String(s) + ",X)");
     end if;
   //    h :=getProp_REFPROP_check("h", "ds", fluidnames,d,s,X,phase);
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "ds",
         d,
@@ -1250,7 +1358,7 @@ end ThermodynamicState;
          d) + "," + String(T) + ",X)");
     end if;
   //    h :=getProp_REFPROP_check("h", "dT", fluidnames,d,T,X,phase);
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "dT",
         d,
@@ -1283,7 +1391,7 @@ end ThermodynamicState;
          p) + "," + String(d) + ",X)...");
     end if;
   //  h :=getProp_REFPROP_check("h", "pd", fluidnames,p,d,X,phase);
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "pd",
         p,
@@ -1316,7 +1424,7 @@ end ThermodynamicState;
          p) + "," + String(q) + ",X)");
     end if;
   //  h :=getProp_REFPROP_check("h", "pq", fluidnames,p,q,X,phase);
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "pq",
         p,
@@ -1343,7 +1451,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEnthalpy_psX(" + String(
          p) + "," + String(s) + ",X)...");
     end if;
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "ps",
         p,
@@ -1380,7 +1488,7 @@ end ThermodynamicState;
          p) + "," + String(T) + ",X)...");
     end if;
       // p="+String(p)+",T="+String(T)+", X={"+String(X[1])+","+String(X[2])+"}");
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "pT",
         p,
@@ -1413,7 +1521,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEnthalpy_TsX(" + String(
          T) + "," + String(s) + ",X)");
     end if;
-    h := getProp_REFPROP_check(
+    h := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "h",
         "Ts",
         T,
@@ -1444,7 +1552,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEntropy_dTX(" + String(
         d) + "," + String(T) + ",X)");
     end if;
-    s := getProp_REFPROP_check(
+    s := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "s",
         "dT",
         d,
@@ -1474,7 +1582,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEntropy_hdX(" + String(
         h) + "," + String(d) + ",X)");
     end if;
-    s := getProp_REFPROP_check(
+    s := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "s",
         "hd",
         h,
@@ -1504,7 +1612,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEntropy_pdX(" + String(
         p) + "," + String(d) + ",X)");
     end if;
-    s := getProp_REFPROP_check(
+    s := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "s",
         "pd",
         p,
@@ -1571,7 +1679,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEntropy_pqX(" + String(
         p) + "," + String(q) + ",X)");
     end if;
-    s := getProp_REFPROP_check(
+    s := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "s",
         "pq",
         p,
@@ -1592,7 +1700,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEntropy_pTX(" + String(
         p) + "," + String(T) + ",X)");
     end if;
-    s := getProp_REFPROP_check(
+    s := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "s",
         "pT",
         p,
@@ -1626,7 +1734,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running specificEntropy_ThX(" + String(
         T) + "," + String(h) + ",X)");
     end if;
-    s := getProp_REFPROP_check(
+    s := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "s",
         "Th",
         T,
@@ -1656,7 +1764,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running temperature_dsX(" + String(d) + ","
          + String(s) + ",X)");
     end if;
-    T := getProp_REFPROP_check(
+    T := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "T",
         "ds",
         d,
@@ -1686,7 +1794,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running temperature_hdX(" + String(h) + ","
          + String(d) + ",X)");
     end if;
-    T := getProp_REFPROP_check(
+    T := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "T",
         "hd",
         h,
@@ -1716,7 +1824,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running temperature_hsX(" + String(h) + ","
          + String(s) + ",X)");
     end if;
-    T := getProp_REFPROP_check(
+    T := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "T",
         "hs",
         h,
@@ -1746,7 +1854,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running temperature_psX(" + String(p) + ","
          + String(d) + ",X)...");
     end if;
-    T := getProp_REFPROP_check(
+    T := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "T",
         "pd",
         p,
@@ -1777,7 +1885,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running temperature_pqX(" + String(p) + ","
          + String(q) + ",X)");
     end if;
-    T := getProp_REFPROP_check(
+    T := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "T",
         "pq",
         p,
@@ -1799,7 +1907,7 @@ end ThermodynamicState;
       Modelica.Utilities.Streams.print("Running temperature_psX(" + String(p) + ","
          + String(s) + ",X)...");
     end if;
-    T := getProp_REFPROP_check(
+    T := REFPROP2Modelica.Interfaces.REFPROPMixtureTwoPhaseMedium.getProp_REFPROP_check(
         "T",
         "ps",
         p,
@@ -1861,6 +1969,39 @@ end ThermodynamicState;
       s_out := s_out + delimiter + s_in[i];
     end for;
   end StrJoin;
+
+  replaceable function setSat_p
+    "Return saturation property record from pressure"
+    extends Modelica.Icons.Function;
+    input AbsolutePressure p "pressure";
+    input MassFraction X[nX] "Mass fractions";
+    input Real Tsurft=0
+      "additional temperature for surface tension function, in case of setSat_pX";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+      sat := setSat(
+        "p",
+        p,
+        X,
+        Tsurft,
+        calcTransport);
+  end setSat_p;
+
+  replaceable function setSat_T
+    "Return saturation property record from temperature"
+    extends Modelica.Icons.Function;
+    input Temperature T "temperature";
+    input MassFraction X[nX] "Mass fractions";
+    input Boolean calcTransport=false;
+    output SaturationProperties sat "saturation property record";
+  algorithm
+        sat := setSat(
+        "t",
+        T,
+        X,
+        calcTransport=calcTransport);
+  end setSat_T;
   annotation (Documentation(info="<html>
 <p>
 <b>REFPROPMedium</b> is a package that delivers <b>REFPROP</b> data to a model based on and largely compatible to the Modelica.Media library.

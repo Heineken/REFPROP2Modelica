@@ -20,6 +20,8 @@ int main(int argc, char* argv[]){
 	int partialDersInputChoice= 3;
 
 	double *satprops;
+	double *critprops;
+	double *transprops;
 
 	int nX=2; // Number of components
 
@@ -40,6 +42,9 @@ int main(int argc, char* argv[]){
 	trns  = (double*) calloc(3,sizeof(double));
 
 	satprops = (double*) calloc(12+nX,sizeof(double));
+
+	critprops = (double*) calloc(3+nX,sizeof(double));
+	transprops = (double*) calloc(2,sizeof(double));
 
 	char fluidname[255] = "ammoniaL|water";
 	x[0] = 0.5;
@@ -185,5 +190,30 @@ int main(int argc, char* argv[]){
 	out << buffer << std::endl << std::endl << std::endl;
 
 	printf("%s",out.str().c_str());
+
+
+	x[0]=0;
+	x[1]=1;
+
+	res = critprops_REFPROP(fluidname, critprops, x, thepathChar, errormsg, DEBUG);
+
+	printf("%f\n",critprops[0]);
+	printf("%f\n",critprops[1]);
+	printf("%f\n",critprops[2]);
+	printf("%f\n",critprops[3]);
+	printf("%f\n",critprops[4]);
+
+	res = critprops_REFPROP(fluidname, critprops, x, thepathChar, errormsg, DEBUG);
+
+	printf("%f\n",critprops[0]);
+	printf("%f\n",critprops[1]);
+	printf("%f\n",critprops[2]);
+	printf("%f\n",critprops[3]);
+	printf("%f\n",critprops[4]);
+
+	x[0]=1;
+	x[1]=0;
+
 	return 0;
+
 }

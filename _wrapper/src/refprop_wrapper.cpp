@@ -103,6 +103,9 @@ int PartialDersInputChoice;
 //long   lerr;  			// Error return mechanism
 double dhelp = noValue;
 
+
+
+
 // Properties for setSat functions
 double dxmolsat[ncmax], dwmsat, dpsat, dtsat,ddlsat,ddvsat,
 	dxmollsat[ncmax],dxmolvsat[ncmax],dplsat,dhlsat,dslsat,
@@ -2749,3 +2752,44 @@ OUTPUT
 		return -1.0;
 	}
 }
+
+
+
+
+double critprops_REFPROP(char* fluidnames, double *critprops, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE){
+/*Calculates crit  */
+
+	double dxmolcrit[ncmax];
+	double dwmcrit;
+	long lerr = 0;
+	if (DEBUGMODE) debug = true;
+	std::string fluids 	= std::string(fluidnames);
+	std::string rPath 	= std::string(REFPROP_PATH);
+	/*
+	 * Call method to initialise the library and check for new fluids.
+	 */
+	if (setFluids(rPath,fluids,errormsg) != OK) {
+		printf("Error initialising REFPROP: \"%s\"\n", errormsg);
+		return -FAIL;
+	}
+	// Convert mass-based composition to mole fractions and set molecular weight.
+	dxkg = x;
+	XMOLEdll(dxkg,dxmolcrit,dwmcrit);
+
+	CRITPdll(dxmolcrit,critprops[0],critprops[1],critprops[2],lerr,errormsg,errormessagelength);
+
+	critprops[1]=critprops[1]*1000; //convert from kPa to Pa
+	critprops[2]=critprops[2]*dwmcrit; //convert from mol/L to g/L = kg/m3
+
+	if (lerr==1) {
+		strcpy(errormsg,"CRITP did not converge");
+	}
+
+	for (int ii=0;ii<lnc;ii++){
+		critprops[3+ii] = dxmolcrit[ii];
+	}
+
+	return 0;
+
+}
+

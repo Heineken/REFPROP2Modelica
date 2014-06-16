@@ -501,7 +501,7 @@ package AmmoniaWater
         amplitude=0.1,
         offset=0.2)
       annotation (Placement(transformation(extent={{12,30},{24,42}})));
-    REFPROP2Modelica.Testers.NH3Water_MUXvsPHXvsPTX.Volume_phX volume(
+    Volume_phX                                                 volume(
         V=0.01,
         hstart=3000e3,
         redeclare package Medium = REFPROP2Modelica.Media.NH3_Water)
@@ -552,7 +552,7 @@ package AmmoniaWater
         amplitude=0.1,
         offset=0.2)
       annotation (Placement(transformation(extent={{12,30},{24,42}})));
-    REFPROP2Modelica.Testers.NH3Water_MUXvsPHXvsPTX.Volume_phX volume(
+    Volume_phX                                                 volume(
         V=0.01,
         hstart=1500e3,
         redeclare package Medium = REFPROP2Modelica.Media.NH3_Water)

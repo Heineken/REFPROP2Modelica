@@ -108,9 +108,8 @@ double dhelp = noValue;
 
 // Properties for setSat functions
 double dxmolsat[ncmax], dwmsat, dpsat, dtsat,ddlsat,ddvsat,
-	dxmollsat[ncmax],dxmolvsat[ncmax],dplsat,dhlsat,dslsat,
-	dcvlsat,dcplsat,dwlsat,dpvsat,dhvsat,dsvsat,dcvvsat,dcpvsat,
-	dwvsat,dtlsat,dtvsat;
+	dxmollsat[ncmax],dxmolvsat[ncmax],dhlsat,dslsat,
+	dwlsat,dhvsat,dsvsat,dwvsat,ddsat;
 
 /*
  * Most of the fluid properties are stored here. There are arrays for
@@ -121,9 +120,13 @@ double dxmolsat[ncmax], dwmsat, dpsat, dtsat,ddlsat,ddvsat,
  */
 double 	dt, dp, de, dh, ds, dqmol, dd, dxmol[ncmax], ddl,
 	ddv, dxmoll[ncmax], dxmolv[ncmax], dCv, dCp, dw, dwliq, dwvap,
-	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta;
+	dhjt, dZ[ncmax], dA, dG, dxkappa, dbeta,
+	dhl,dhv,dsl,dsv,dsigma,dts;
 
 double *dxkg;
+double dxkg_old[ncmax];
+double dx1kg_old;
+double dx1molsat_old;
 
 // viscosity and thermal conductivity
 double deta, dtcx;
@@ -144,6 +147,11 @@ int flushProperties(){
 	dxmol[0]=noValue;
 	ddl=noValue;
 	ddv=noValue;
+	dhl=noValue;
+	dhv=noValue;
+	dsl=noValue;
+	dsv=noValue;
+
 	dxmoll[0]=noValue;
 	dxmolv[0]=noValue;
 	dCv=noValue;
@@ -160,6 +168,7 @@ int flushProperties(){
 	dbeta=noValue;
 	deta=noValue;
 	dtcx=noValue;
+	dsigma=noValue;
 
 	ddddX_ph=noValue;
 	ddddp_h=noValue;
@@ -216,6 +225,7 @@ char hrf[] = "DEF";
  */
 RPVersion_POINTER RPVersion;
 SETPATHdll_POINTER SETPATHdll;
+SATSPLNdll_POINTER SATSPLNdll;
 ABFL1dll_POINTER ABFL1dll;
 ABFL2dll_POINTER ABFL2dll;
 ACTVYdll_POINTER ACTVYdll;
@@ -320,7 +330,7 @@ RMIX2dll_POINTER RMIX2dll;
 RDXHMXdll_POINTER RDXHMXdll;
 PHIXdll_POINTER PHIXdll;
 PHI0dll_POINTER PHI0dll;
-
+DQFL2dll_POINTER DQFL2dll;
 
 /*
  * Helper function to split strings the
@@ -364,6 +374,23 @@ bool strCompare(const std::string& str1, const std::string& str2) {
     return true;
 }
 
+
+void useSATSPLN(long lerr, char* errormsg) {
+	// need to check the composition if old .
+	if (lnc>1) {
+		if (dxkg[1]>0 && dxkg[1]<1) {
+		if (dx1kg_old!=dxkg[1]) {
+			SATSPLNdll(dxmol,lerr,errormsg,errormessagelength);
+			if (debug) {
+			printf("\n\n USING SATSPLN, because we have new composition\n\n");
+			printf("dx1kg_old = %f\n", dx1kg_old);
+			printf("dxkg[1] = %f \n", dxkg[1]);
+			}
+		}
+		dx1kg_old=dxkg[1];
+		}
+	}
+}
 
 
 
@@ -687,6 +714,9 @@ double setFunctionPointers() {
 	} else { // set the pointers
 		// set the pointers, platform independent
 		RPVersion = (RPVersion_POINTER) getFunctionPointer((char *) RPVersion_NAME);
+
+		SATSPLNdll = (SATSPLNdll_POINTER) getFunctionPointer((char *) SATSPLNdll_NAME);
+
 		ABFL1dll = (ABFL1dll_POINTER) getFunctionPointer((char *) ABFL1dll_NAME);
 		ABFL2dll = (ABFL2dll_POINTER) getFunctionPointer((char *) ABFL2dll_NAME);
 		ACTVYdll = (ACTVYdll_POINTER) getFunctionPointer((char *) ACTVYdll_NAME);
@@ -786,6 +816,8 @@ double setFunctionPointers() {
 		RDXHMXdll = (RDXHMXdll_POINTER) getFunctionPointer((char *) RDXHMXdll_NAME);
 		PHIXdll = (PHIXdll_POINTER) getFunctionPointer((char *) PHIXdll_NAME);
 		PHI0dll = (PHI0dll_POINTER) getFunctionPointer((char *) PHI0dll_NAME);
+		DQFL2dll = (DQFL2dll_POINTER) getFunctionPointer((char *) DQFL2dll_NAME);
+
 
 		if (debug) printf ("Function pointers set to macro values.\n");
 		return OK;
@@ -1006,6 +1038,24 @@ double getDL_modelica(){
 double getDV_modelica(){
 	//density of gaseous phase
 	return ddv*dwvap;  // mol/l * g/mol = g/l = kg/m3
+}
+double getHL_modelica(){
+	//density of liquid phase
+	return dhl/dwliq * 1000.0; // J/mol / g/mol * 1000g/kg = J/kg
+}
+
+double getHV_modelica(){
+	//density of gaseous phase
+	return dhv/dwvap * 1000.0; // J/mol / g/mol * 1000g/kg = J/kg
+}
+double getSL_modelica(){
+	//density of liquid phase
+	return dsl/dwliq * 1000.0; // J/molK / g/mol * 1000g/kg = J/kgK
+}
+
+double getSV_modelica(){
+	//density of gaseous phase
+	return dsv/dwvap * 1000.0; // J/molK / g/mol * 1000g/kg = J/kgK
 }
 
 double getQ_modelica(){
@@ -1538,6 +1588,7 @@ int ders_REFPROP(double *ders, char* errormsg, int DEBUGMODE){
 					// get other sat props at const T,p,x
 					THERM2dll(dt, ddv, dxmolv, spare3, spare4, h_v, s_v, dCv_v, dCp_v, dwm_v,spare2, spare10, spare11, spare12, dxkappa_v, dbeta_v, spare13, spare14, spare15, spare16,spare17, spare18, spare19, spare20, spare21);
 					THERM2dll(dt, ddl, dxmoll, spare3, spare4, h_l, s_l, dCv_l, dCp_l, dwm_l,spare2, spare10, spare11, spare12, dxkappa_l, dbeta_l, spare13, spare14, spare15, spare16,spare17, spare18, spare19, spare20, spare21);
+
 					//ddv_v = ddv;
 					//ddl_l = ddl;
 					// compute drhodp_h
@@ -1870,6 +1921,7 @@ int updateTrns(double *trns, long lerr){
 	trns[0] = lerr;//error code
 	trns[1] = getETA_modelica(); // dynamic viscosity in Pa.s
 	trns[2] = getTCX_modelica(); // thermal conductivity in W/m.K
+	trns[3] = dsigma;
 	return 0;
 }
 
@@ -1892,47 +1944,49 @@ int trns_REFPROP(double *trns, char* errormsg, int DEBUGMODE){
 
 	switch(lerr){
 		case -31:
-			sprintf(errormsg,"Temperature T=%f out of range for conductivity",dt);
+			printf(errormsg,"Temperature T=%f out of range for conductivity",dt);
 			break;
 		case -32:
-			sprintf(errormsg,"density d=%f out of range for conductivity",dd);
+			printf(errormsg,"density d=%f out of range for conductivity",dd);
 			break;
 		case -33:
-			sprintf(errormsg,"Temperature T=%f and density d=%f out of range for conductivity",dt,dd);
+			printf(errormsg,"Temperature T=%f and density d=%f out of range for conductivity",dt,dd);
 			break;
 		case -41:
-			sprintf(errormsg,"Temperature T=%f out of range for viscosity",dt);
+			printf(errormsg,"Temperature T=%f out of range for viscosity",dt);
 			break;
 		case -42:
-			sprintf(errormsg,"density d=%f out of range for viscosity",dd);
+			printf(errormsg,"density d=%f out of range for viscosity",dd);
 			break;
 		case -43:
-			sprintf(errormsg,"Temperature T=%f and density d=%f out of range for viscosity",dt,dd);
+			printf(errormsg,"Temperature T=%f and density d=%f out of range for viscosity",dt,dd);
 			break;
 		case -51:
-			sprintf(errormsg,"Temperature T=%f out of range for conductivity and viscosity",dt);
+			printf(errormsg,"Temperature T=%f out of range for conductivity and viscosity",dt);
 			break;
 		case -52:
-			sprintf(errormsg,"density d=%f out of range for conductivity and viscosity",dd);
+			printf(errormsg,"density d=%f out of range for conductivity and viscosity",dd);
 			break;
 		case -53:
-			sprintf(errormsg,"Temperature T=%f and density d=%f out of range for conductivity and viscosity",dt,dd);
+			printf(errormsg,"Temperature T=%f and density d=%f out of range for conductivity and viscosity",dt,dd);
 			break;
 		case 39:
-			sprintf(errormsg,"model not found for thermal conductivity");
+			printf(errormsg,"model not found for thermal conductivity");
 			break;
 		case 49:
-			sprintf(errormsg,"model not found for viscosity");
+			printf(errormsg,"model not found for viscosity");
 			break;
 		case 50:
-			sprintf(errormsg,"ammonia/water mixture (no properties calculated)");
+			printf(errormsg,"ammonia/water mixture (no properties calculated)");
 			break;
 		case 51:
-			sprintf(errormsg,"exactly at T=%f, rhoc for a pure fluid; k is infinite",dt);
+			printf(errormsg,"exactly at T=%f, rhoc for a pure fluid; k is infinite",dt);
 			break;
 		case -58:
+			printf(errormsg,"ECS model did not converge");
+			break;
 		case -59:
-			sprintf(errormsg,"ECS model did not converge");
+			printf(errormsg,"ECS model did not converge");
 			break;
 		default:
 			break;
@@ -1964,11 +2018,17 @@ int updateProps(double *props, long lerr){
 	props[13] = getW_modelica(); 	//speed of sound
 	props[14] = getWML_modelica();
 	props[15] = getWMV_modelica();
+	props[16] = getHL_modelica();	//h of liquid phase
+	props[17] = getHV_modelica();	//h of vapor phase
+	props[18] = getSL_modelica();	//s of liquid phase
+	props[19] = getSV_modelica();	//s of vapor phase
+	props[20] = dts;				//saturation temperature
+
 
 	for (int dim=0; dim<lnc; dim++){
 		//if (debug) printf("Processing %i:%f, %f \n",dim,dxlkg[dim],dxvkg[dim]);
-		props[16+dim] = dxlkg[dim];
-		props[16+lnc+dim] = dxvkg[dim];
+		props[21+dim] = dxlkg[dim];
+		props[21+lnc+dim] = dxvkg[dim];
 	}
 	return 0;
 }
@@ -2001,7 +2061,7 @@ OUTPUT
 
 //    DEBUGMODE = 1;
 	if (DEBUGMODE) debug = true;
-	if (calcTransport) calcTrans = true;
+	if (calcTransport) calcTrans = true; else calcTrans = false;
 	//if (calcTwoPhaseNumericalDerivatives) calcTwoPhaseNumDers = true;
 	//if (calcTwoPhasePsuedoAnalyticalDerivatives) calcTwoPhasePsuedoAnalDers = true;
 	//if (statesTPX) dynstatesTPX = true;
@@ -2056,6 +2116,8 @@ OUTPUT
 		printf("Error initialising REFPROP: \"%s\"\n", errormsg);
 		return -FAIL;
 	}
+
+
 
 
 	/*
@@ -2133,7 +2195,8 @@ OUTPUT
 	if (debug) printf("Loading a new state, flushed state. \n");
 
 
-/* //TODO Is this really nescesary? I think the possibility of dymola calling with same state twice is almost none (it will call for other states to compute, in between)..
+/*
+ * //TODO Is this really nescesary? I think the possibility of dymola calling with same state twice is almost none (it will call for other states to compute, in between)..
 
 	bool knownState = isState(var1,val1,var2,val2,dxmoltmp,lnc); // dummies to force recalculation
 	double result = getValue(out);
@@ -2164,9 +2227,15 @@ OUTPUT
 		return FAIL;
 	}
 
+
 	memcpy(dxmol, dxmoltmp, sizeof(dxmoltmp)) ;
 	//dxmol = dxmoltmp;
 	dwm = dwmtmp;
+
+
+
+
+
 
 	double dqkg;
 	for (int ii=1;ii<3;ii++){
@@ -2209,6 +2278,10 @@ OUTPUT
 				if (debug) printf("Calling TPFLSH with %f and %f.\n",dt,dp);
 				TPFLSHdll(dt,dp,dxmol,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
 				//if (debug) printf("Getting dd: %f\n",dd);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						TPFLSHdll(dt,dp,dxmol,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+					}
 //			}
 		}else if (isInput(in1,in2,std::string("ph"))){
 //			if (phase==1){ //fluid state is known to be single phase
@@ -2217,13 +2290,25 @@ OUTPUT
 //			}else{
 				if (debug) printf("Calling PHFLSH with %f and %f.\n",dp,dh);
 				PHFLSHdll(dp,dh,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				if (lerr!=0) { // compute phase envelope if error occurs, and try again
+					useSATSPLN(lerr, errormsg);
+					PHFLSHdll(dp,dh,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				}
 //			}
 		}else if (isInput(in1,in2,std::string("pd"))){
 			if (phase==1){ //fluid state is known to be single phase
 				PDFL1dll(dp,dd,dxmol,dt,lerr,errormsg,errormessagelength);
+				if (lerr!=0) { // compute phase envelope if error occurs, and try again
+					useSATSPLN(lerr, errormsg);
+					PDFL1dll(dp,dd,dxmol,dt,lerr,errormsg,errormessagelength);
+				}
 			}else{
 				if (debug) printf("Calling PDFLSH with %f and %f.\n",dp,dd);
 				PDFLSHdll(dp,dd,dxmol,dt,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				if (lerr!=0) { // compute phase envelope if error occurs, and try again
+					useSATSPLN(lerr, errormsg);
+					PDFLSHdll(dp,dd,dxmol,dt,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				}
 			}
 		}else if (isInput(in1,in2,std::string("sp"))){
 /*			if (phase==1){ //fluid state is known to be single phase
@@ -2232,10 +2317,29 @@ OUTPUT
 			}else{*/
 				if (debug) printf("Calling PSFLSH with %f and %f.\n",dp,ds);
 				PSFLSHdll(dp,ds,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				if (lerr!=0) { // compute phase envelope if error occurs, and try again
+					useSATSPLN(lerr, errormsg);
+					PSFLSHdll(dp,ds,dxmol,dt,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				}
 //			}
 		}else if (isInput(in1,in2,std::string("pq"))){
 			if (debug) printf("Calling PQFLSH with %f and %f.\n",dp,dqkg);
 			PQFLSHdll(dp,dqkg,dxmol,kq,dt,dd,ddl,ddv,dxmoll,dxmolv,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			if (lerr!=0  || ddl<=ddv) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				PQFLSHdll(dp,dqkg,dxmol,kq,dt,dd,ddl,ddv,dxmoll,dxmolv,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			}
+			WMOLdll(dxmolv,dwvap);
+			dqmol = dqkg*dwm/dwvap;
+//			strcat(errormsg,"Bin in PQ!");
+		}else if (isInput(in1,in2,std::string("dq"))){
+			if (debug) printf("Calling DQFL2 with %f and %f.\n",dd,dqkg);
+			DQFL2dll(dd,dqkg,dxmol,kq,dt,dp,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			if (lerr!=0  || ddl<=ddv) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				DQFL2dll(dd,dqkg,dxmol,kq,dt,dp,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			}
+	//			     (d,      q,       z,        kq,     t,        p,       Dl,       Dv,     x,        y    ,ierr,herr)
 //			strcat(errormsg,"Bin in PQ!");
 		}else if (isInput(in1,in2,std::string("th"))){
 /*			if (phase==1){ //fluid state is known to be single phase
@@ -2248,43 +2352,116 @@ OUTPUT
 		      4 = input state is vapor in equilibrium with solid */
 				if (debug) printf("Calling THFLSH with %f and %f.\n",dt,dh);
 				THFLSHdll(dt,dh,dxmol,kr,dp,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				if (lerr!=0) { // compute phase envelope if error occurs, and try again
+					useSATSPLN(lerr, errormsg);
+					THFLSHdll(dt,dh,dxmol,kr,dp,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				}
 //			}
 		}else if (isInput(in1,in2,std::string("td"))){
-			if (debug) printf("Calling TDFLSH with %f and %f.\n",dt,dd);
-			TDFLSHdll(dt,dd,dxmol,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			/*
+			if (phase==1){ //fluid state is known to be single phase
+				if (debug) printf("Calling THERM with %f and %f.\n",dt,dd);
+				THERMdll(dt,dd,dxmol,dp,de,dh,ds,dCv,dCp,dw,dhjt);
+				 long kphsatp=1;
+				double dtl;
+				SATPdll(dp,dxmol,kphsatp,dtl,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+				kphsatp=2;
+				double dtv;
+				SATPdll(dp,dxmol,kphsatp,dtv,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+				if (dt/dtl < dt/dtv) { // liquid
+				dqmol=0;
+				} else {
+				dqmol=1;
+				}
+				for (int ii=0;ii<lnc;ii++){
+					dxmoll[ii]=dxmol[ii];
+					dxmolv[ii]=dxmol[ii];
+				}
+				ddl=dd;
+				ddv=dd;
+
+			} else {
+			*/
+				if (debug) printf("Calling TDFLSH with %f and %f.\n",dt,dd);
+				TDFLSHdll(dt,dd,dxmol,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				if (lerr!=0) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				TDFLSHdll(dt,dd,dxmol,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+				}
+			//}
+
+
 		}else if (isInput(in1,in2,std::string("ts"))){
 			long kr = 2;
 			if (debug) printf("Calling TSFLSH with %f and %f.\n",dt,ds);
 			TSFLSHdll(dt,ds,dxmol,kr,dp,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			if (lerr!=0) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				TSFLSHdll(dt,ds,dxmol,kr,dp,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			}
 		}else if (isInput(in1,in2,std::string("tq"))){
 			if (debug) printf("Calling TQFLSH with %f and %f.\n",dt,dqkg);
 			TQFLSHdll(dt,dqkg,dxmol,kq,dp,dd,ddl,ddv,dxmoll,dxmolv,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			if (lerr!=0 || ddl<=ddv) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				TQFLSHdll(dt,dqkg,dxmol,kq,dp,dd,ddl,ddv,dxmoll,dxmolv,de,dh,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			}
+			WMOLdll(dxmolv,dwvap);
+			dqmol = dqkg*dwm/dwvap;
 		}else if (isInput(in1,in2,std::string("dh"))){
 			switch(phase){ //fluid state is known to be single phase
 				case 1:
 					DHFL1dll(dd,dh,dxmol,dt,lerr,errormsg,errormessagelength);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						DHFL1dll(dd,dh,dxmol,dt,lerr,errormsg,errormessagelength);
+					}
 					break;
 				case 2:
 					DHFL2dll(dd,dh,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,lerr,errormsg,errormessagelength);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						DHFL2dll(dd,dh,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,lerr,errormsg,errormessagelength);
+					}
 					break;
 				default:
 					if (debug) printf("Calling DHFLSH with %f and %f.\n",dd,dh);
 					DHFLSHdll(dd,dh,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						DHFLSHdll(dd,dh,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,ds,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+					}
 					break;
 			}
 		}else if (isInput(in1,in2,std::string("hs"))){
 			HSFLSHdll(dh,ds,dxmol,dt,dp,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			if (lerr!=0) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				HSFLSHdll(dh,ds,dxmol,dt,dp,dd,ddl,ddv,dxmoll,dxmolv,dqmol,de,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+			}
 		}else if (isInput(in1,in2,std::string("ds"))){
 			switch(phase){ //fluid state is known to be single phase
 				case 1:
 					DSFL1dll(dd,ds,dxmol,dt,lerr,errormsg,errormessagelength);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						DSFL1dll(dd,ds,dxmol,dt,lerr,errormsg,errormessagelength);
+					}
 					break;
 				case 2:
 					DSFL2dll(dd,ds,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,lerr,errormsg,errormessagelength);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						DSFL2dll(dd,ds,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,lerr,errormsg,errormessagelength);
+					}
 					break;
 				default:
 					if (debug) printf("Calling DSFLSH with %f and %f.\n",dd,ds);
 					DSFLSHdll(dd,ds,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+					if (lerr!=0) { // compute phase envelope if error occurs, and try again
+						useSATSPLN(lerr, errormsg);
+						DSFLSHdll(dd,ds,dxmol,dt,dp,ddl,ddv,dxmoll,dxmolv,dqmol,de,dh,dCv,dCp,dw,lerr,errormsg,errormessagelength);
+					}
 					break;
 			}
 		}else
@@ -2392,8 +2569,86 @@ OUTPUT
 	}
 
 
-	updateProps(props, lerr);
+	// my fancy way of ensuring things are computed right at the liquid and vapor saturation
+	double dqmolLIM;
+	if (dqmol<=0) {
+		dqmolLIM=0;
+	} else if (dqmol>=1) {
+		dqmolLIM=1;
+	} else {
+		dqmolLIM=dqmol;
+	}
 
+
+	//printf("dqmol %f\n",dqmol);
+	//printf("dp %f\n",dp);
+	//printf("dxmol %f,%f\n",dxmol[0],dxmol[1]);
+	double pcrit,tcrit,dcrit;
+	CRITPdll(dxmol,tcrit,pcrit,dcrit,lerr,errormsg,errormessagelength);
+	//printf("tc %f\n",tcrit);
+	//printf("pc %f\n",pcrit);
+	//printf("dc %f\n",dcrit);
+
+	if (dp >= pcrit-0.01) { // critical T or p or both
+		ENTHALdll(tcrit,dcrit,dxmol,dhl);
+		ENTROdll(tcrit,dcrit,dxmol,dsl);
+		dhv=dhl;
+		dsv=dsl;
+		dts=tcrit;
+		ddl=dcrit;
+		ddv=dcrit;
+	} else {
+		if (dqmolLIM == 0.) { // liquid region
+			long kphsatp=1;
+			SATPdll(dp,dxmol,kphsatp,dts,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			if (lerr!=0 || ddl<=ddv) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				SATPdll(dp,dxmol,kphsatp,dts,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			}
+			ENTHALdll(dts,ddl,dxmoll,dhl);
+			ENTROdll(dts,ddl,dxmoll,dsl);
+			ENTHALdll(dts,ddv,dxmolv,dhv);
+			ENTROdll(dts,ddv,dxmolv,dsv);
+		} else if (dqmolLIM == 1.) { // vapor region
+			long kphsatp=2;
+			SATPdll(dp,dxmol,kphsatp,dts,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			if (lerr!=0 || ddl<=ddv) { // compute phase envelope if error occurs, and try again
+				useSATSPLN(lerr, errormsg);
+				SATPdll(dp,dxmol,kphsatp,dts,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
+			}
+			ENTHALdll(dts,ddl,dxmoll,dhl);
+			ENTROdll(dts,ddl,dxmoll,dsl);
+			ENTHALdll(dts,ddv,dxmolv,dhv);
+			ENTROdll(dts,ddv,dxmolv,dsv);
+		} else {  // two-phase region
+			ENTHALdll(dt,ddl,dxmoll,dhl);
+			ENTROdll(dt,ddl,dxmoll,dsl);
+			ENTROdll(dt,ddv,dxmolv,dsv);
+			ENTHALdll(dt,ddv,dxmolv,dhv);
+			dts=dt;
+		}
+	}
+
+
+	// some linear interpoltion to avoid strange cp on liquid/vapor lines
+	if (dqmol>=0 && dqmol<=1) { // two-phase
+		double dcp_l,dcp_v,spare;
+		CVCPdll(dt,ddl,dxmoll,spare,dcp_l);
+		CVCPdll(dt,ddv,dxmolv,spare,dcp_v);
+		dCp = dcp_l + (dcp_v-dcp_l)*dqmol;
+		if (calcTrans) {
+			SURTENdll (dt,ddl,ddv,dxmoll,dxmolv,dsigma,lerr,errormsg,errormessagelength);
+		} else {
+			dsigma =0;
+		}
+	} else { // single-phase
+		dsigma = 0;
+	}
+
+
+
+
+	updateProps(props, lerr);
 
 	if (PartialDersInputChoice!=1) {
 		int outVal = ders_REFPROP(ders,errormsg,debug);
@@ -2410,10 +2665,13 @@ OUTPUT
 		updateDers(ders, lerr);
 	}
 
+//	updateProps(props, lerr);
+
 	if (calcTrans) {
 		int outVal = trns_REFPROP(trns,errormsg,debug);
 		if ( 0 != outVal || trns[0] != 0 ) printf("Error in transport property function, returned %i\n",outVal);
 	}
+
 	if ( strCompare(out, "p") ) {
 		if (debug) printf("Returning %s = %f\n",out.c_str(),getP_modelica());
 		return getP_modelica();
@@ -2457,7 +2715,7 @@ OUTPUT
 //---------------------------------------------------------------------------
 
 
-double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *satprops, double statevarval, double Tsurft, double* x, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport){
+double satprops_REFPROP(char* what, char* statevar_in, char* fluidnames, double *satprops, double statevarval, double* x, int kph, char* REFPROP_PATH, char* errormsg, int DEBUGMODE, int calcTransport){
 /*Calculates thermodynamic saturation properties of a pure substance/mixture, returns both single value and array containing all calculated values (because the are calculated anyway)
 INPUT:
 	what: character specifying return value (p,T,h,s,d,wm,q,e,w) - Explanation of variables at the end of this function
@@ -2475,9 +2733,12 @@ OUTPUT
 
 	long lerr = 0;
 
+	long dkph = kph;
+
 
 //    DEBUGMODE = 1;
 	if (DEBUGMODE) debug = true;
+	if (calcTransport) calcTrans = true; else calcTrans = false;
 
 	std::string out 	= std::string(what).substr(0,1);
 	std::string in1 	= std::string(statevar_in).substr(0,1);
@@ -2536,72 +2797,145 @@ OUTPUT
 		dpsat = getP_refprop(statevarval);
 	} else if ( strCompare(in1, "t") ) {
 		dtsat = getT_refprop(statevarval);
-	}
-	/* else if ( strCompare(in1, "d") ) {
-		dd = getD_refprop(statevarval);
-	} */
-	 else {
+	} else if ( strCompare(in1, "d") ) {
+		ddsat = getD_refprop(statevarval);
+	} else {
 		lerr = 2;
 		sprintf(errormsg,"Unknown state variable: %s\n", in1.c_str());
 		return lerr;
 	}
 	if (debug)  printf("\nstatevar %s checked\n",in1.c_str());
 
-	long j;
-/* j--phase flag: 1 = input x is liquid composition (bubble point)
-		    2 = input x is vapor composition (dew point)
-		    3 = input x is liquid composition (freezing point)
-		    4 = input x is vapor composition (sublimation point)
-*/
-	//long kph = -1;
-/* kph--flag specifying desired root for multi-valued inputs
-           has meaning only for water at temperatures close to its triple point
-          -1 = return middle root (between 0 and 4 C)
-           1 = return highest temperature root (above 4 C)
-           3 = return lowest temperature root (along freezing line) */
 
-	double spare1,spare2,spare3,spare4,spare10[ncmax];
+	/*
+	c      kph--phase flag: 1 = input x is liquid composition (bubble point)
+	c                       2 = input x is vapor composition (dew point)
+	c                       3 = input x is liquid composition (freezing point)
+	c                       4 = input x is vapor composition (sublimation point)
+	*/
+
+	double pcrit,tcrit,dcrit;
+	CRITPdll(dxmolsat,tcrit,pcrit,dcrit,lerr,errormsg,errormessagelength);
+
 
 	if (lerr==0) {
 		if ( strCompare(in1, "t") ) {
-			j=1;
-			SATTdll(dtsat,dxmolsat,j,dplsat,ddlsat,spare1,dxmollsat,spare10,lerr,errormsg,errormessagelength);
-			THERMdll (dtsat,ddlsat,dxmollsat,spare1,spare2,dhlsat,dslsat,dcvlsat,dcplsat,spare3,spare4);
-			j=2;
-			SATTdll(dtsat,dxmolsat,j,dpvsat,spare1,ddvsat,spare10,dxmolvsat,lerr,errormsg,errormessagelength);
-			THERMdll (dtsat,ddvsat,dxmolvsat,spare1,spare2,dhvsat,dsvsat,dcvvsat,dcpvsat,spare3,spare4);
-			dtlsat=dtsat;
-			dtvsat=dtsat;
-			//THERM (t,		rho,		x,		p,		e,			h,		s,		cv,		cp,	 	w,		hjt)
+			if (dtsat >= tcrit-1) { // critical
+				ENTHALdll(tcrit,dcrit,dxmolsat,dhlsat);
+				ENTROdll(tcrit,dcrit,dxmolsat,dslsat);
+				dhvsat=dhlsat;
+				dsvsat=dslsat;
+				dtsat=tcrit;
+				ddlsat=dcrit;
+				ddvsat=dcrit;
+				for (int ii=0;ii<lnc;ii++){
+					dxmollsat[ii] = dxmolsat[ii];
+					dxmolvsat[ii] = dxmolsat[ii];
+				}
+			} else {
+				SATTdll(dtsat,dxmolsat,dkph,dpsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,lerr,errormsg,errormessagelength);
+				if (lerr!=0 || ddlsat<=ddvsat) { // compute phase envelope if error occurs, and try again
+					if (lnc>1) {
+						if (dxmolsat[1]>0 && dxmolsat[1]<1) {
+						if (dx1molsat_old!=dxmolsat[1]) {
+							SATSPLNdll(dxmolsat,lerr,errormsg,errormessagelength);
+							if (debug) {
+							printf("\n\n USING SATSPLN, because we have new composition\n\n");
+							printf("dx1molsat_old = %f\n", dx1molsat_old);
+							printf("dxmolsat[1] = %f \n", dxmolsat[1]);
+							}
+						}
+						dx1molsat_old=dxmolsat[1];
+						}
+					}
+					SATTdll(dtsat,dxmolsat,dkph,dpsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,lerr,errormsg,errormessagelength);
+				}
+				ENTHALdll(dtsat,ddlsat,dxmollsat,dhlsat);
+				ENTHALdll(dtsat,ddvsat,dxmolvsat,dhvsat);
+				ENTROdll(dtsat,ddlsat,dxmollsat,dslsat);
+				ENTROdll(dtsat,ddvsat,dxmolvsat,dsvsat);
+			}
 		} else if ( strCompare(in1, "p") ) {
-			j=1;
-			SATPdll(dpsat,dxmolsat,j,dtlsat,ddlsat,spare1,dxmollsat,spare10,lerr,errormsg,errormessagelength);
-			THERMdll (dtlsat,ddlsat,dxmollsat,dplsat,spare2,dhlsat,dslsat,dcvlsat,dcplsat,spare3,spare4);
-			j=2;
-			SATPdll(dpsat,dxmolsat,j,dtvsat,spare1,ddvsat,spare10,dxmolvsat,lerr,errormsg,errormessagelength);
-			THERMdll (dtvsat,ddvsat,dxmolvsat,dpvsat,spare2,dhvsat,dsvsat,dcvvsat,dcpvsat,spare3,spare4);
-			//dplsat=dpsat;
-			//dpvsat=dpsat;
-			switch(lerr){
-				case 2:
-					strcpy(errormsg,"P < Ptp");
-					break;
-				case 4:
-					strcpy(errormsg,"P < 0");
-					break;
+
+			if (dpsat >= pcrit-0.01) { // critical
+				ENTHALdll(tcrit,dcrit,dxmolsat,dhlsat);
+				ENTROdll(tcrit,dcrit,dxmolsat,dslsat);
+				dhvsat=dhlsat;
+				dsvsat=dslsat;
+				dtsat=tcrit;
+				ddlsat=dcrit;
+				ddvsat=dcrit;
+				for (int ii=0;ii<lnc;ii++){
+					dxmollsat[ii] = dxmolsat[ii];
+					dxmolvsat[ii] = dxmolsat[ii];
+				}
+			} else {
+				SATPdll(dpsat,dxmolsat,dkph,dtsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,lerr,errormsg,errormessagelength);
+				if (lerr!=0 || ddlsat<=ddvsat) { // compute phase envelope if error occurs, and try again
+					if (lnc>1) {
+						if (dxmolsat[1]>0 && dxmolsat[1]<1) {
+						if (dx1molsat_old!=dxmolsat[1]) {
+							SATSPLNdll(dxmolsat,lerr,errormsg,errormessagelength);
+							if (debug) {
+							printf("\n\n USING SATSPLN, because we have new composition\n\n");
+							printf("dx1molsat_old = %f\n", dx1molsat_old);
+							printf("dxmolsat[1] = %f \n", dxmolsat[1]);
+							}
+						}
+						dx1molsat_old=dxmolsat[1];
+						}
+					}
+					SATPdll(dpsat,dxmolsat,dkph,dtsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,lerr,errormsg,errormessagelength);
+				}
+				ENTHALdll(dtsat,ddlsat,dxmollsat,dhlsat);
+				ENTHALdll(dtsat,ddvsat,dxmolvsat,dhvsat);
+				ENTROdll(dtsat,ddlsat,dxmollsat,dslsat);
+				ENTROdll(dtsat,ddvsat,dxmolvsat,dsvsat);
+				switch(lerr){
+					case 2:
+						strcpy(errormsg,"P < Ptp");
+						break;
+					case 4:
+						strcpy(errormsg,"P < 0");
+						break;
+				}
 			}
 			//sprintf(errormsg,"p=%f, h=%f",p ,statevar2);
+		} else if ( strCompare(in1, "d") ) {
+
+				long dkphsatD=2;
+				SATDdll(ddsat,dxmolsat,dkphsatD,dkph,dtsat,dpsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,lerr,errormsg,errormessagelength);
+				if (lerr!=0 || ddlsat<=ddvsat) { // compute phase envelope if error occurs, and try again
+
+					if (lnc>1) {
+						if (dxmolsat[1]>0 && dxmolsat[1]<1) {
+						if (dx1molsat_old!=dxmolsat[1]) {
+							SATSPLNdll(dxmolsat,lerr,errormsg,errormessagelength);
+							if (debug) {
+							printf("\n\n USING SATSPLN, because we have new composition\n\n");
+							printf("dx1molsat_old = %f\n", dx1molsat_old);
+							printf("dxmolsat[1] = %f \n", dxmolsat[1]);
+							}
+						}
+						dx1molsat_old=dxmolsat[1];
+						}
+					}
+
+					SATDdll(ddsat,dxmolsat,dkphsatD,dkph,dtsat,dpsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,lerr,errormsg,errormessagelength);
+				}
+				ENTHALdll(dtsat,ddlsat,dxmollsat,dhlsat);
+				ENTHALdll(dtsat,ddvsat,dxmolvsat,dhvsat);
+				ENTROdll(dtsat,ddlsat,dxmollsat,dslsat);
+				ENTROdll(dtsat,ddvsat,dxmolvsat,dsvsat);
+
+				switch(lerr){
+					case 2:
+						strcpy(errormsg,"D > Dmax");
+						break;
+				}
+
 		}
-		/*
-		 else if ( strCompare(in1, "d") ) {
-			SATDdll(dd,dxmol,j,kph,dt,dp,ddl,ddv,dxmoll,dxmolv,lerr,errormsg,errormessagelength);
-			switch(lerr){
-				case 2:
-					strcpy(errormsg,"D > Dmax");
-					break;
-			}
-		}
-		*/
+
 	}
 
 	switch(lerr){
@@ -2696,13 +3030,9 @@ OUTPUT
 
 	double dsigma;
 
- 	if (calcTransport) {
- 		if ( strCompare(in1, "t") ) {
- 			SURTENdll (dtsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,dsigma,lerr,errormsg,errormessagelength);
- 		} else if ( strCompare(in1, "p") ) {
- 			SURFTdll (Tsurft,ddlsat,dxmollsat,dsigma,lerr,errormsg,errormessagelength);
- 		}
-	} else {
+ 	if (calcTrans) {
+ 		SURTENdll (dtsat,ddlsat,ddvsat,dxmollsat,dxmolvsat,dsigma,lerr,errormsg,errormessagelength);
+ 	} else {
 		dsigma =0;
 	}
 
@@ -2713,24 +3043,21 @@ OUTPUT
 
 	//ASSIGN VALUES TO RETURN ARRAY
 	satprops[0] = lerr;//error code
-	satprops[1] = dtlsat;				//Temperature in K
-	satprops[2] = dtvsat;				//Temperature in K
-	satprops[3] = dplsat*1000;			//pressure in kPa->Pa
-	satprops[4] = dpvsat*1000;			//pressure in kPa->Pa
-	satprops[5] = ddlsat*dwlsat;		//density of liquid phase mol/L ->g/L (kg/m3)
-	satprops[6] = ddvsat*dwvsat;		//density of vapor phase mol/L ->g/L (kg/m3)
-	satprops[7] = dhlsat/dwlsat*1000;	//enthalpy of liquid J/mol -> J/g e-3 -> J/kg
-	satprops[8] = dhvsat/dwvsat*1000;	//enthalpy of vapor J/mol -> J/g e-3 -> J/kg
-	satprops[9] = dslsat/dwlsat*1000;	//entropy of liquid J/molK -> J/gK e-3 -> J/kgK
-	satprops[10] = dsvsat/dwvsat*1000;	//entropy of vapor J/molK -> J/gK e-3 -> J/kgK
-	satprops[11] = dsigma; 				//surface tension
+	satprops[1] = dtsat;				//Temperature in K
+	satprops[2] = dpsat*1000;			//pressure in kPa->Pa
+	satprops[3] = ddlsat*dwlsat;		//density of liquid phase mol/L ->g/L (kg/m3)
+	satprops[4] = ddvsat*dwvsat;		//density of vapor phase mol/L ->g/L (kg/m3)
+	satprops[5] = dhlsat/dwlsat*1000;	//enthalpy of liquid J/mol -> J/g e-3 -> J/kg
+	satprops[6] = dhvsat/dwvsat*1000;	//enthalpy of vapor J/mol -> J/g e-3 -> J/kg
+	satprops[7] = dslsat/dwlsat*1000;	//entropy of liquid J/molK -> J/gK e-3 -> J/kgK
+	satprops[8] = dsvsat/dwvsat*1000;	//entropy of vapor J/molK -> J/gK e-3 -> J/kgK
+	satprops[9] = dsigma; 				//surface tension
 
 //	satprops[12] = dwlsat/1000;			//molecular weight g/mol -> kg/mol
 //	satprops[13] = dwvsat/1000;			//molecular weight g/mol -> kg/mol
 	for (int ii=0;ii<lnc;ii++){
-		satprops[12+ii] = dxkg[ii];
-//		satprops[14+lnc+ii] = dxlkg[ii];
-//		satprops[14+lnc+lnc+ii] = dxvkg[ii];
+		satprops[10+ii] = dxlkg[ii];
+		satprops[10+lnc+ii] = dxvkg[ii];
 	}
 
 	if (debug) printf("Returning %s\n",out.c_str());

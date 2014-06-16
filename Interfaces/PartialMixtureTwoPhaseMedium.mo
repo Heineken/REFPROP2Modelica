@@ -59,6 +59,7 @@ redeclare replaceable record extends ThermodynamicState
     MolarMass molarMass "Molar mass of bulk mixture";
     FixedPhase phase(min=0, max=2)
       "phase of the fluid: 1 for 1-phase, 2 for two-phase, 0 for not known, e.g. interactive use";
+
     //PrandtlNumber Pr "prandtl number";
     //Temperature T "temperature";
     VelocityOfSound w(min=1e-8) "velocity of sound";
@@ -82,10 +83,9 @@ end ThermodynamicState;
     "Saturation properties of two phase medium"
     extends Modelica.Icons.Record;
 
-    Temperature Tl(min=1e-8) "saturation temperature at bubble line";
-    Temperature Tv(min=1e-8) "saturation temperature at dew line";
-    AbsolutePressure pl(min=1e-8) "saturation pressure at bubble line";
-    AbsolutePressure pv(min=1e-8) "saturation pressure at dew line";
+       Temperature Tsat;
+       AbsolutePressure psat;
+       MassFraction X[nX] "Mass fraction of bulk";
   //   Real dTp "derivative of Ts wrt pressure";
   //   DerDensityByPressure ddldp "derivative of dls wrt pressure";
   //   DerDensityByPressure ddvdp "derivative of dvs wrt pressure";
@@ -98,13 +98,11 @@ end ThermodynamicState;
      SpecificEntropy sl "specific entropy at bubble line (for pressure ps)";
      SpecificEntropy sv "specific entropy at dew line (for pressure ps)";
      SurfaceTension sigma "surface tension";
-     MassFraction X[nX] "Bulk mass fractions";
+  //   MassFraction X[nX] "Bulk mass fractions";
   //   MolarMass MMl "molar mass bubble line (for pressure ps)";
   //   MolarMass MMv "molar mass at dew line (for pressure ps)";
-  //   MassFraction Xl[nX] "Mass fractions of liquid phase";
-  //   MassFraction Xv[nX] "Mass fractions of gaseous phase";
-        AbsolutePressure psat annotation(HideResult=true);
-        Temperature Tsat annotation(HideResult=true);
+     MassFraction Xl[nX] "Mass fractions of liquid phase";
+     MassFraction Xv[nX] "Mass fractions of gaseous phase";
   end SaturationProperties;
 
 redeclare replaceable model extends BaseProperties(
@@ -667,7 +665,6 @@ end specificEntropy_pTX;
         phase));
     annotation(Documentation(info="<html></html>"));
   end temperature_phX;
-
 
   redeclare replaceable function temperature_psX
     "Return temperature from p, s, and X or Xi"

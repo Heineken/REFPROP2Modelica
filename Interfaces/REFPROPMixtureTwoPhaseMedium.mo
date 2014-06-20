@@ -54,9 +54,9 @@ partial package REFPROPMixtureTwoPhaseMedium
   //used by getSatProp_REFPROP_check() and getProp_REFPROP_check()
     extends Modelica.Icons.Function;
   protected
-    Real[18 + 2*nX] props;
+    Real[21+ 2*nX] props;
     Real[12] ders;
-    Real[3] trns;
+    Real[4] trns;
     String errormsg=StrJoin(fill("xxxx", 64), "")
       "Allocating memory, string will be written by C function, doesn't work for strings longer than 40 bytes";
   end partialREFPROP;
@@ -134,7 +134,7 @@ partial package REFPROPMixtureTwoPhaseMedium
   //used by getSatProp_REFPROP_check() and getProp_REFPROP_check()
     extends Modelica.Icons.Function;
   protected
-    Real[12 + 1*nX] satprops;
+    Real[11 + 2*nX] satprops;
     String errormsg=StrJoin(fill("xxxx", 64), "")
       "Allocating memory, string will be written by C function, doesn't work for strings longer than 40 bytes";
   // initial algorithm
@@ -151,8 +151,8 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String fluidnames;
     input Real[:] satprops;
     input Real statevarval;
-    input Real Tsurft=0
-      "additional temperature for surface tension function, in case of setSat_pX";
+    input Integer kph(min=1,max=2)
+      "phase specification, 1=>X is liquid, 2=>X is vapor";
     input Boolean calcTransport=false;
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     input String errormsg;
@@ -164,8 +164,8 @@ partial package REFPROPMixtureTwoPhaseMedium
         fluidnames,
         satprops,
         statevarval,
-        Tsurft,
         X,
+        kph,
         REFPROP_PATH,
         errormsg,
         debugmode,
@@ -180,8 +180,8 @@ partial package REFPROPMixtureTwoPhaseMedium
     input String statevar;
   //   input String fluidnames;
     input Real statevarval;
-    input Real Tsurft=0
-      "additional temperature for surface tension function, in case of setSat_pX";
+    input Integer kph(min=1,max=2)
+      "phase specification, 1=>X is liquid, 2=>X is vapor";
     input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
     output Real val;
   algorithm
@@ -192,8 +192,8 @@ partial package REFPROPMixtureTwoPhaseMedium
         fluidnames,
         satprops,
         statevarval,
-        Tsurft,
         X,
+        kph,
         errormsg) "just passing through";
   //Error string decoding in wrapper-c-function
     assert(satprops[1] == 0 or satprops[1] == 141, "Errorcode " + String(satprops[1]) + " in REFPROP wrapper function:\n"
@@ -211,15 +211,17 @@ end SaturationProperties;
 redeclare record extends ThermodynamicState
     "Adapt this record to the returned values from one REFPROP call."
 
-  Density d_l "density of liquid phase";
-  Density d_g "density of gaseous phase";
+  SaturationProperties sat "saturation properties";
+
+//   Density d_l "density of liquid phase";
+//   Density d_g "density of gaseous phase";
 //  MassFraction x "void fraction";
 // SpecificInternalEnergy u "Specific energy";
 
 // MolarMass MM_l "Molar Mass of liquid phase";
 //  MolarMass MM_g "Molar Mass of gas phase";
-  MassFraction X_l[nX] "Composition of liquid phase (Mass fractions  in kg/kg)";
-  MassFraction X_g[nX] "Composition of gas phase (Mass fractions  in kg/kg)";
+//  MassFraction X_l[nX] "Composition of liquid phase (Mass fractions  in kg/kg)";
+//  MassFraction X_g[nX] "Composition of gas phase (Mass fractions  in kg/kg)";
 //    DerDensityByEnthalpy ddhp
 //    "derivative of density wrt enthalpy at constant pressure";
 //    DerDensityByPressure ddph
@@ -391,20 +393,31 @@ end ThermodynamicState;
   If q = 999 Then Quality = Trim2("Supercritical state (T>Tc, p>pc)")
   If q = -998 Then Quality = Trim2("Subcooled liquid with p>pc")*/
     state := ThermodynamicState(
+          sat=SaturationProperties(
+          Tsat=props[21],
+          psat=props[2],
+          X=X,
+          dl=props[6],
+          dv=props[7],
+          hl=props[17],
+          hv=props[18],
+          sl=props[19],
+          sv=props[20],
+          sigma=trns[4],
+          Xl={props[21+i] for i in 1:nX},
+          Xv={props[21+nX+i] for i in 1:nX}),
         p=props[2],
         T=props[3],
         X=X,
         molarMass=props[4],
         d=props[5],
-        d_l=props[6],
-        d_g=props[7],
         h=props[10],
         s=props[11],
         cv=props[12],
         cp=props[13],
         w=props[14],
         phase=if (props[8] > 0 and props[8] < 1) then 2 else 1,
-        q=if (props[8] < 0) then 0 elseif (props[8] > 1) then 1 else props[8],
+        q= props[8],
         kappa=ders[2],
         beta=ders[3],
         dddX_ph=ders[4],
@@ -417,9 +430,9 @@ end ThermodynamicState;
         dhdT_pX=ders[11],
         dhdX_pT=ders[12],
         eta=trns[2],
-        lambda=trns[3],
-        X_l={props[16+i] for i in 1:nX},
-        X_g={props[16+nX+i] for i in 1:nX});
+        lambda=trns[3]);
+        //q=if (props[8] < 0) then 0 elseif (props[8] > 1) then 1 else props[8],
+  //      q=if (props[8] < 0) then 0 elseif (props[8] > 1) then 1 else props[8],
 
     if debugmode then
       Modelica.Utilities.Streams.print("Running state set to p,T,d,h,s ("
@@ -451,6 +464,8 @@ end ThermodynamicState;
 
   redeclare replaceable function extends setState_dTX
   //      input String fluidnames;
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
   algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running setState_dTX(" + String(d) + ","
@@ -461,7 +476,9 @@ end ThermodynamicState;
         d,
         T,
         X,
-        phase) ",fluidnames)";
+        phase,
+        partialDersInputChoice,
+        calcTransport) ",fluidnames)";
   end setState_dTX;
 
   function setState_hsX "Calculates medium properties from h,s,X"
@@ -551,52 +568,42 @@ end ThermodynamicState;
   redeclare function extends setBubbleState
     "set the thermodynamic state on the bubble line"
   algorithm
-  //     if debugmode then
-  //       Modelica.Utilities.Streams.print("Running setState_phX(" + String(sat.psat) + ","
-  //          + String(bubbleEnthalpy(sat)) + ",X)...");
-  //     end if;
-  //     state := setState(
-  //         "pq",
-  //         sat.psat,
-  //         0,
-  //         sat.X,
-  //         phase) ",fluidnames)";
-      if debugmode then
-        Modelica.Utilities.Streams.print("Running setState_dTX(" + String(sat.dv) + ","
-           + String(sat.Tv) + ",X)...");
-      end if;
-      state := setState(
-          "dT",
-          sat.dl,
-          sat.Tl,
-          sat.X,
-          phase);
+  //      if debugmode then
+  //        Modelica.Utilities.Streams.print("Running setState_dTX(" + String(sat.dl) + ","
+  //           + String(sat.Tsat) + ",X)...");
+  //      end if;
+  //      state := setState_dTX(
+  //          sat.dl,
+  //          sat.Tsat,
+  //          sat.Xl,
+  //          phase);
+
+       state := setState_pqX(
+           sat.psat,
+           0,
+           sat.X);
 
   end setBubbleState;
 
   redeclare function extends setDewState
     "set the thermodynamic state on the bubble line"
+    //input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    //input Boolean calcTransport=false;
   algorithm
-  //     if debugmode then
-  //       Modelica.Utilities.Streams.print("Running setState_phX(" + String(sat.psat) + ","
-  //          + String(dewEnthalpy(sat)) + ",X)...");
-  //     end if;
-  //     state := setState(
-  //         "pq",
-  //         sat.psat,
-  //         1,
-  //         sat.X,
-  //         phase) ",fluidnames)";
-      if debugmode then
-        Modelica.Utilities.Streams.print("Running setState_dTX(" + String(sat.dv) + ","
-           + String(sat.Tv) + ",X)...");
-      end if;
-      state := setState(
-          "dT",
-          sat.dv,
-          sat.Tv,
-          sat.X,
-          phase);
+  //      if debugmode then
+  //        Modelica.Utilities.Streams.print("Running setState_dTX(" + String(sat.dv) + ","
+  //           + String(sat.Tsat) + ",X)...");
+  //      end if;
+  //      state := setState_dTX(
+  //          sat.dv,
+  //          sat.Tsat,
+  //          sat.Xv,
+  //          phase);
+
+       state := setState_pqX(
+           sat.psat,
+           1,
+           sat.X);
 
   end setDewState;
 
@@ -607,6 +614,8 @@ end ThermodynamicState;
     input Modelica.SIunits.MassFraction X[:]=reference_X "Mass fractions";
     input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
   //  input String fluidnames;
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
     output ThermodynamicState state "thermodynamic state record";
   algorithm
     if debugmode then
@@ -618,8 +627,35 @@ end ThermodynamicState;
         p,
         q,
         X,
-        phase) ",fluidnames)";
+        phase,
+        partialDersInputChoice,
+        calcTransport) ",fluidnames)";
   end setState_pqX;
+
+  function setState_TqX "Calculates medium properties from p,q,X"
+    extends Modelica.Icons.Function;
+    input Modelica.SIunits.Temperature T "Temperature";
+    input Modelica.SIunits.MassFraction q "quality (vapor mass fraction)";
+    input Modelica.SIunits.MassFraction X[:]=reference_X "Mass fractions";
+    input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
+  //  input String fluidnames;
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
+    output ThermodynamicState state "thermodynamic state record";
+  algorithm
+    if debugmode then
+      Modelica.Utilities.Streams.print("Running setState_tqX(" + String(T) + ","
+         + String(q) + ",X)...");
+    end if;
+    state := setState(
+        "tq",
+        T,
+        q,
+        X,
+        phase,
+        partialDersInputChoice,
+        calcTransport) ",fluidnames)";
+  end setState_TqX;
 
   redeclare replaceable partial function extends setState_psX
     "Calculates medium properties from p,s,X"
@@ -703,8 +739,8 @@ end ThermodynamicState;
     input String statevar;
     input Real statevarval;
     input Modelica.SIunits.MassFraction X[:] "Mass fractions";
-    input Real Tsurft=0
-      "additional temperature for surface tension function, in case of setSat_pX";
+    input Integer kph(min=1,max=2)
+      "phase specification, 1=>X is liquid, 2=>X is vapor";
     input Boolean calcTransport=false;
     output SaturationProperties sat "saturation property record";
   algorithm
@@ -715,27 +751,25 @@ end ThermodynamicState;
         fluidnames,
         satprops,
         statevarval,
-        Tsurft,
+        kph,
         calcTransport,
         X,
         errormsg);
     assert(satprops[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
 
     sat := SaturationProperties(
-    psat=99999,
-    Tsat=99999,
-        Tl=satprops[2],
-        Tv=satprops[3],
-        pl=satprops[4],
-        pv=satprops[5],
-        dl=satprops[6],
-        dv=satprops[7],
-        hl=satprops[8],
-        hv=satprops[9],
-        sl=satprops[10],
-        sv=satprops[11],
-        sigma=satprops[12],
-        X=  satprops[13:13+nX-1]);
+        Tsat=satprops[2],
+        psat=satprops[3],
+        X=X,
+        dl=satprops[4],
+        dv=satprops[5],
+        hl=satprops[6],
+        hv=satprops[7],
+        sl=satprops[8],
+        sv=satprops[9],
+        sigma=satprops[10],
+        Xl=  satprops[11:11+nX-1],
+        Xv=  satprops[11+nX:11+2*nX-1]);
   end setSat;
 
   redeclare replaceable function setSat_pX
@@ -743,8 +777,8 @@ end ThermodynamicState;
     extends Modelica.Icons.Function;
     input AbsolutePressure p "pressure";
     input MassFraction X[nX] "Mass fractions";
-    input Real Tsurft=0
-      "additional temperature for surface tension function, in case of setSat_pX";
+    input Integer kph(min=1,max=2)=1
+      "phase specification, 1=>X is liquid, 2=>X is vapor";
     input Boolean calcTransport=false;
     output SaturationProperties sat "saturation property record";
   algorithm
@@ -752,7 +786,7 @@ end ThermodynamicState;
         "p",
         p,
         X,
-        Tsurft,
+        kph,
         calcTransport);
   end setSat_pX;
 
@@ -761,6 +795,8 @@ end ThermodynamicState;
     extends Modelica.Icons.Function;
     input Temperature T "temperature";
     input MassFraction X[nX] "Mass fractions";
+    input Integer kph(min=1,max=2)=1
+      "phase specification, 1=>X is liquid, 2=>X is vapor";
     input Boolean calcTransport=false;
     output SaturationProperties sat "saturation property record";
   algorithm
@@ -768,20 +804,9 @@ end ThermodynamicState;
         "t",
         T,
         X,
+        kph,
         calcTransport=calcTransport);
   end setSat_TX;
-
-  redeclare function extends saturationPressure
-  algorithm
-  //  this function does not make sense, what pressure do you want?
-  // use setSat instead
-  end saturationPressure;
-
-  redeclare function extends saturationTemperature
-  algorithm
-  //  this function does not make sense, what temperature do you want?
-  // use setSat instead
-  end saturationTemperature;
 
 //  redeclare function extends specificEntropy
 //     "Return specific entropy  - seems useless, but good for compatibility between PartialMedium and PartialMixedMediumTwoPhase"
@@ -1943,7 +1968,7 @@ end ThermodynamicState;
     cv := state.cv;
   end specificHeatCapacityCv;
 
-  redeclare function extends thermalConductivity
+  redeclare replaceable function extends thermalConductivity
   algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running thermalConductivity");
@@ -1951,7 +1976,7 @@ end ThermodynamicState;
     lambda := state.lambda;
   end thermalConductivity;
 
-  redeclare function extends dynamicViscosity
+  redeclare replaceable function extends dynamicViscosity
   algorithm
     if debugmode then
       Modelica.Utilities.Streams.print("Running dynamicViscosity");
@@ -2002,6 +2027,78 @@ end ThermodynamicState;
         X,
         calcTransport=calcTransport);
   end setSat_T;
+
+  partial function partialCritREFPROP "Declaration of array props"
+    extends Modelica.Icons.Function;
+  protected
+    Real[1] critprops;
+    String errormsg=StrJoin(fill("xxxx", 64), "");
+
+  end partialCritREFPROP;
+
+  function getCritProp_REFPROP
+    input String fluidnames;
+    input Real[:] critprops;
+    input MassFraction X[:] "mass fraction m_NaCl/m_Sol";
+    input String errormsg;
+    output Real val;
+  external"C" val=  critprops_REFPROP(
+        fluidnames,
+        critprops,
+        X,
+        REFPROP_PATH,
+        errormsg,
+        debugmode);
+    annotation (Include="#include <refprop_wrapper.h>", Library="refprop_wrapper");
+  end getCritProp_REFPROP;
+
+  function setCrit
+    extends partialCritREFPROP;
+    input Modelica.SIunits.MassFraction X[:] "Mass fractions";
+    output Real Tc(unit="K") "critical temperature K";
+  //  output Real pc(unit="kPa") "critical pressure, kPa";
+  //  output Real dc(unit="mol/l") "critical molar density, mol/L";
+   // output MoleFraction[nX] Z "mole fraction";
+
+  algorithm
+    getCritProp_REFPROP(
+        fluidnames,
+        critprops,
+        X,
+        errormsg);
+    assert(critprops[1] == 0, "Error in REFPROP wrapper function: " + errormsg + "\n");
+
+      Tc:=critprops[1];
+  //    pc:=critprops[2];
+  //    dc:=critprops[3];
+  //    Z:=critprops[4:4+nX-1];
+
+  end setCrit;
+
+  function setState_dqX "Calculates medium properties from d,q,X"
+    extends Modelica.Icons.Function;
+    input Modelica.SIunits.Density d "Pressure";
+    input Modelica.SIunits.MassFraction q "quality (vapor mass fraction)";
+    input Modelica.SIunits.MassFraction X[:]=reference_X "Mass fractions";
+    input FixedPhase phase=0 "2 for two-phase, 1 for one-phase, 0 if not known";
+  //  input String fluidnames;
+    input PartialDersInputChoice partialDersInputChoice=PartialDersInputChoice.none;
+    input Boolean calcTransport=false;
+    output ThermodynamicState state "thermodynamic state record";
+  algorithm
+    if debugmode then
+      Modelica.Utilities.Streams.print("Running setState_dqX(" + String(d) + ","
+         + String(q) + ",X)...");
+    end if;
+    state := setState(
+        "dq",
+        d,
+        q,
+        X,
+        phase,
+        partialDersInputChoice,
+        calcTransport) ",fluidnames)";
+  end setState_dqX;
   annotation (Documentation(info="<html>
 <p>
 <b>REFPROPMedium</b> is a package that delivers <b>REFPROP</b> data to a model based on and largely compatible to the Modelica.Media library.

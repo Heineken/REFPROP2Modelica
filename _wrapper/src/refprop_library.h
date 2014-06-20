@@ -30,6 +30,7 @@
 // names are needed. Macros still need a value for the
 // name function used below.
 #  define RPVersion RPVersion
+#  define SATSPLNdll SATSPLNdll
 #  define SETPATHdll SETPATHdll
 #  define ABFL1dll ABFL1dll
 #  define ABFL2dll ABFL2dll
@@ -135,6 +136,8 @@
 # 	define RDXHMXdll RDXHMXdll
 # 	define PHIXdll PHIXdll
 #   define PHI0dll PHI0dll
+#   define DQFL2dll DQFL2dll
+
 
 #elif defined(__ISLINUX__) // defined(__ISWINDOWS__)
 // Define compiler specific calling conventions
@@ -150,6 +153,7 @@
 // #    if defined( _CRAY
 // However, I cannot test that and therefore do not include it.
 #  define RPVersion rpversion_
+#  define SATSPLNdll satsplndll_
 #  define SETPATHdll setpathdll_
 #  define ABFL1dll abfl1dll_
 #  define ABFL2dll abfl2dll_
@@ -255,11 +259,13 @@
 # 	define RDXHMXdll rdxhmxdll_
 # 	define PHIXdll phixdll_
 #   define PHI0dll phi0dll_
+#   define DQFL2dll dqfl2dll_
 
 #else // #elif defined(__ISLINUX__)
 // Set some dummy names for the compiler
 #  define CALLCONV
 #  define RPVersion NOTAVAILABLE
+#  define SATSPLNdll satsplndll
 #  define SETPATHdll setpathdll
 #  define ABFL1dll abfl1dll
 #  define ABFL2dll abfl2dll
@@ -365,6 +371,7 @@
 # 	define RDXHMXdll rdxhmxdll
 # 	define PHIXdll phixdll
 #   define PHI0dll phi0dll
+#   define DQFL2dll dqfl2dll
 
 #endif // else branch
 //
@@ -383,6 +390,7 @@
 // handle the library later on.
 #define RPVersion_NAME FUNCTION_NAME(RPVersion)
 #define SETPATHdll_NAME FUNCTION_NAME(SETPATHdll)
+#define SATSPLNdll_NAME FUNCTION_NAME(SATSPLNdll)
 #define ABFL1dll_NAME FUNCTION_NAME(ABFL1dll)
 #define ABFL2dll_NAME FUNCTION_NAME(ABFL2dll)
 #define ACTVYdll_NAME FUNCTION_NAME(ACTVYdll)
@@ -487,6 +495,7 @@
 #define RDXHMXdll_NAME FUNCTION_NAME(RDXHMXdll)
 #define PHIXdll_NAME FUNCTION_NAME(PHIXdll)
 #define PHI0dll_NAME FUNCTION_NAME(PHI0dll)
+#define DQFL2dll_NAME FUNCTION_NAME(DQFL2dll)
 
 //
 // I'll try to follow this example from:
@@ -499,6 +508,8 @@ extern "C" {
 #endif
   typedef void (CALLCONV RPVersion_TYPE)( char* );
   typedef void (CALLCONV SETPATHdll_TYPE)( const char* );
+  typedef void (CALLCONV SATSPLNdll_TYPE)(double *,long &,char*,long );
+
   //
   typedef void (CALLCONV ABFL1dll_TYPE)(double &,double &,double *,long &,double &,double &,double &,double &,double &,double &,long &,char*,long );
   typedef void (CALLCONV ABFL2dll_TYPE)(double &,double &,double *,long &,long &,double &,double &,double &,double &,double &,double &,double &,double *,double *,double &,double &,double &,double &,double *,double *,double &,long &,char*,long );
@@ -604,8 +615,7 @@ extern "C" {
   typedef void (CALLCONV RDXHMXdll_TYPE)(long *,long *,long *,double *,double &,double &,long &,char*,long );
   typedef void (CALLCONV PHIXdll_TYPE)(long *,long *,double &,double &,double *,double &);
   typedef void (CALLCONV PHI0dll_TYPE)(long *,long *,double &,double &,double *,double &);
-
-
+  typedef void (CALLCONV DQFL2dll_TYPE)(double &,double &,double *,long &,double &,double &,double &,double &,double *,double *,long &,char*,long );
 
   //
 // Disabled because we prefer pointers here!
@@ -712,8 +722,14 @@ extern "C" {
 //  XMOLEdll_TYPE XMOLEdll;
   //
   // Define explicit function pointers
+
+
+
+
+
   typedef RPVersion_TYPE * RPVersion_POINTER;
   typedef SETPATHdll_TYPE * SETPATHdll_POINTER;
+  typedef SATSPLNdll_TYPE * SATSPLNdll_POINTER;
   typedef ABFL1dll_TYPE * ABFL1dll_POINTER;
   typedef ABFL2dll_TYPE * ABFL2dll_POINTER;
   typedef ACTVYdll_TYPE * ACTVYdll_POINTER;
@@ -818,6 +834,8 @@ extern "C" {
   typedef RDXHMXdll_TYPE * RDXHMXdll_POINTER;
   typedef PHIXdll_TYPE * PHIXdll_POINTER;
   typedef PHI0dll_TYPE * PHI0dll_POINTER;
+  typedef DQFL2dll_TYPE * DQFL2dll_POINTER;
+
 
 
 

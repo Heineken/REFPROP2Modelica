@@ -19,7 +19,11 @@ int main(int argc, char* argv[]){
 	int transport = 0;
 	int partialDersInputChoice= 3;
 
+	int kph=1; // concentration is liquid
+
 	double *satprops;
+	double *critprops;
+	double *transprops;
 
 	int nX=2; // Number of components
 
@@ -35,11 +39,14 @@ int main(int argc, char* argv[]){
 
 	// Allocate space for objects
 	x     = (double*) calloc(nX,sizeof(double));
-	props = (double*) calloc(18+2*nX,sizeof(double));
+	props = (double*) calloc(20+2*nX,sizeof(double));
 	ders  = (double*) calloc(12,sizeof(double));
-	trns  = (double*) calloc(3,sizeof(double));
+	trns  = (double*) calloc(4,sizeof(double));
 
-	satprops = (double*) calloc(12+nX,sizeof(double));
+	satprops = (double*) calloc(10+2*nX,sizeof(double));
+
+	critprops = (double*) calloc(3+nX,sizeof(double));
+	transprops = (double*) calloc(2,sizeof(double));
 
 	char fluidname[255] = "ammoniaL|water";
 	x[0] = 0.5;
@@ -77,23 +84,30 @@ int main(int argc, char* argv[]){
 				sprintf (buffer, "T = %8.4f [K]",props[2]);
 				out << buffer << std::endl;
 
-			res = satprops_REFPROP((char*)"p", (char*)"t", fluidname, satprops, props[2], 0,  x, thepathChar, errormsg, DEBUG, transport);
-
-				sprintf (buffer, "Pl(T) = %8.4f [Pa]",satprops[3]);
+				kph=1;
+				x[0] = props[16];
+				x[1] = props[17];
+				res = satprops_REFPROP((char*)"p", (char*)"t", fluidname, satprops, props[2], x, kph, thepathChar, errormsg, DEBUG, transport);
+				sprintf (buffer, "P(T) = %8.4f [Pa]",satprops[2]);
 				out << buffer << std::endl;
-				sprintf (buffer, "Pv(T) = %8.4f [Pa]",satprops[4]);
-				out << buffer << std::endl;
-
-				res = satprops_REFPROP((char*)"t", (char*)"p", fluidname, satprops, p, 0,  x, thepathChar, errormsg, DEBUG, transport);
-
-				sprintf (buffer, "Tl(p) = %8.4f [K]",satprops[1]);
-				out << buffer << std::endl;
-				sprintf (buffer, "Tv(p) = %8.4f [K]",satprops[2]);
+				res = satprops_REFPROP((char*)"t", (char*)"p", fluidname, satprops, satprops[2], x, kph, thepathChar, errormsg, DEBUG, transport);
+				sprintf (buffer, "P(T) = %8.4f [Pa]",satprops[2]);
 				out << buffer << std::endl;
 
 
-				sprintf (buffer, "Ders = %8.0f , %8.12f , %8.1f , %8.1f , %8.12f , %8.8f , %8.1f , %8.2f , %8.2f , %8.9f , %8.9f , %8.9f, %8.1f",ders[0],ders[1],ders[2],ders[3],ders[4],ders[5],ders[6],ders[7],ders[8],ders[18],ders[19],ders[20],ders[6]);
-				out << buffer << std::endl << std::endl;
+				kph=2;
+				x[0] = props[18];
+				x[1] = props[19];
+				res = satprops_REFPROP((char*)"p", (char*)"t", fluidname, satprops, props[2], x, kph, thepathChar, errormsg, DEBUG, transport);
+				sprintf (buffer, "T(p) = %8.4f [Pa]",satprops[1]);
+				out << buffer << std::endl;
+				res = satprops_REFPROP((char*)"t", (char*)"p", fluidname, satprops, satprops[2], x, kph, thepathChar, errormsg, DEBUG, transport);
+				sprintf (buffer, "T(p) = %8.4f [Pa]",satprops[1]);
+				out << buffer << std::endl;
+
+				x[0] = 0.5;
+				x[1] = 1.0 - x[0];
+
 			}
 		}
 	}
@@ -185,5 +199,30 @@ int main(int argc, char* argv[]){
 	out << buffer << std::endl << std::endl << std::endl;
 
 	printf("%s",out.str().c_str());
+
+
+	x[0]=0;
+	x[1]=1;
+
+	res = critprops_REFPROP(fluidname, critprops, x, thepathChar, errormsg, DEBUG);
+
+	printf("%f\n",critprops[0]);
+	printf("%f\n",critprops[1]);
+	printf("%f\n",critprops[2]);
+	printf("%f\n",critprops[3]);
+	printf("%f\n",critprops[4]);
+
+	res = critprops_REFPROP(fluidname, critprops, x, thepathChar, errormsg, DEBUG);
+
+	printf("%f\n",critprops[0]);
+	printf("%f\n",critprops[1]);
+	printf("%f\n",critprops[2]);
+	printf("%f\n",critprops[3]);
+	printf("%f\n",critprops[4]);
+
+	x[0]=1;
+	x[1]=0;
+
 	return 0;
+
 }
